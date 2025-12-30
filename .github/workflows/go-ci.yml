@@ -1,0 +1,46 @@
+name: Go Build & Test
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - production
+      - staging
+      - development
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22' # Use a recent stable Go version. Adjust if your project strictly requires a different version (e.g., 1.25.5 from go.mod).
+
+    - name: Install yt-dlp
+      # yt-dlp is a critical dependency for the downloader package's functionality.
+      run: |
+        sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+        sudo chmod a+rx /usr/local/bin/yt-dlp
+
+    - name: Run Go tests
+      # This command runs all tests in the project, including sub-packages.
+      run: go test -v ./...
+
+    - name: Build Go binary
+      # This builds the executable. The -o flag names the output binary.
+      run: go build -o yt-transcribe
+      
+    # Optional: Upload the built binary as an artifact
+    # This step can be uncommented if you want to make the built executable
+    # available for download from the GitHub Actions run.
+    # - name: Upload artifact
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: yt-transcribe-binary
+    #     path: yt-transcribe
