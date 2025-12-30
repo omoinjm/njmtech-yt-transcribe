@@ -12,7 +12,7 @@ func TestSanitizeFilename(t *testing.T) {
 	}{
 		{"My Video Title.mp3", "My_Video_Title.mp3"},
 		{"Video/Title:With?Special*Chars", "Video_Title_With_Special_Chars"},
-		{"Another\Video|Title<>", "Another_Video_Title__"},
+		{"Another\\\\Video|Title<>", "Another_Video_Title__"},
 		{"NoSpecialCharsHere", "NoSpecialCharsHere"},
 		{"", ""},
 		{"   leading and trailing spaces   ", "___leading_and_trailing_spaces___"},

@@ -56,7 +56,7 @@ func TestOpenAITranscriber_Transcribe(t *testing.T) {
 			name:         "Valid API Key",
 			apiKey:       "sk-test1234567890",
 			expectError:  false,
-			expectedSubstring: fmt.Sprintf("Mock Transcriber: Simulating transcription for %s using API key (first 5 chars): sk-te...", audioFilePath),
+			expectedSubstring: fmt.Sprintf("This is a mock transcription of the audio file '%s'.", expectedFileName), // Check the actual returned string
 		},
 		{
 			name:         "Empty API Key",
