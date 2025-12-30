@@ -95,9 +95,11 @@ func TestDownloadAudio_Success(t *testing.T) {
 		return nil, os.ErrNotExist
 	}
 
-	// Mock commandExecutor to return a dummy exec.Cmd (its CombinedOutput will be mocked)
 	commandExecutor = func(name string, args ...string) *exec.Cmd {
-		return &exec.Cmd{}
+		return &exec.Cmd{
+			Path: name,
+			Args: append([]string{name}, args...),
+		}
 	}
 	// Mock CombinedOutput for the dummy exec.Cmd
 	cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
@@ -138,7 +140,10 @@ func TestDownloadAudio_CommandFailed(t *testing.T) {
 
 	expectedErrorMsg := "yt-dlp error output"
 	commandExecutor = func(name string, args ...string) *exec.Cmd {
-		return &exec.Cmd{} // A dummy Cmd object
+		return &exec.Cmd{
+			Path: name,
+			Args: append([]string{name}, args...),
+		}
 	}
 	cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
 		return []byte("Error output from yt-dlp: " + expectedErrorMsg), errors.New("exit status 1")
@@ -171,7 +176,10 @@ func TestDownloadAudio_NoDestinationInOutput(t *testing.T) {
 	osStat = func(name string) (os.FileInfo, error) { return nil, os.ErrNotExist }
 
 	commandExecutor = func(name string, args ...string) *exec.Cmd {
-		return &exec.Cmd{}
+		return &exec.Cmd{
+			Path: name,
+			Args: append([]string{name}, args...),
+		}
 	}
 	cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
 		return []byte("Some other yt-dlp output without destination line."), nil
@@ -214,7 +222,10 @@ func TestDownloadAudio_FileNotExistAfterSuccess(t *testing.T) {
 	}
 
 	commandExecutor = func(name string, args ...string) *exec.Cmd {
-		return &exec.Cmd{}
+		return &exec.Cmd{
+			Path: name,
+			Args: append([]string{name}, args...),
+		}
 	}
 	cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
 		return []byte(fmt.Sprintf("[ExtractAudio] Destination: %s\n", expectedFilePath)), nil
