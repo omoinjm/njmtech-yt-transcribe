@@ -44,6 +44,11 @@ func NewYTDLPAudioDownloader() *YTDLPAudioDownloader {
 // Example yt-dlp command:
 // yt-dlp -x --audio-format wav --output "/path/to/output/video_2025-12-31.wav" <video-url>
 func (d *YTDLPAudioDownloader) DownloadAudio(videoURL string, outputDir string) (string, error) {
+	// Check if ffmpeg is installed
+	if _, err := osLookPath("ffmpeg"); err != nil {
+		return "", fmt.Errorf("ffmpeg not found in PATH. ffmpeg is required by yt-dlp to process audio. Please install it to use this feature: %w", err)
+	}
+
 	// Check if yt-dlp is installed
 	if _, err := osLookPath("yt-dlp"); err != nil {
 		return "", fmt.Errorf("yt-dlp not found in PATH. Please install it to use this feature: %w", err)
