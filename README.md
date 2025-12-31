@@ -1,14 +1,15 @@
-# YouTube Video Transcriber CLI (yt-transcribe)
+# YouTube Video Downloader CLI (yt-transcribe)
 
-`yt-transcribe` is a command-line interface (CLI) tool written in Go that allows you to transcribe the audio from YouTube videos into text. It leverages the powerful `yt-dlp` tool to extract audio and is designed with an extensible architecture to integrate with various transcription services.
+`yt-transcribe` is a command-line interface (CLI) tool written in Go that allows you to download audio from YouTube videos. It leverages the powerful `yt-dlp` tool to extract audio and `ffmpeg` to convert it to WAV format.
 
 ## ✨ Features
 
 *   **YouTube Audio Extraction:** Downloads the audio stream from any valid YouTube video URL.
-*   **Text Transcription:** Processes the extracted audio to generate a text transcription (currently mocked, but extensible).
-*   **Customizable Output:** Allows specifying an output directory for the generated transcription file.
-*   **Temporary File Management:** Automatically cleans up downloaded audio files after transcription.
-*   **Modular Design:** Built with SOLID principles, making it easy to swap out different audio downloaders or transcription services.
+*   **WAV Format Output:** Converts downloaded audio to high-quality WAV format.
+*   **Date-Based Naming:** Saves audio files with a `video_YYYY-MM-DD.wav` naming convention.
+*   **Customizable Output Directory:** Allows specifying an output directory for the downloaded audio file.
+*   **Dependency Checks:** Automatically checks for `yt-dlp` and `ffmpeg` and prompts the user to install them if missing.
+*   **Modular Design:** Built with SOLID principles, making it easy to swap out different audio downloaders or transcription services (though transcription is currently disabled).
 
 ## 🚀 Getting Started
 
@@ -17,11 +18,11 @@
 Before you can build and run `yt-transcribe`, you'll need the following:
 
 1.  **Go:**
-    *   Ensure you have Go version `1.25.5` or newer installed on your system.
+    *   Ensure you have Go version `1.22` or newer installed on your system.
     *   Download and installation instructions can be found at: [https://golang.org/doc/install](https://golang.org/doc/install)
 
 2.  **`yt-dlp`:**
-    *   `yt-dlp` is an essential external tool that `yt-transcribe` uses to download audio from YouTube videos. It must be installed and available in your system's `PATH`.
+    *   `yt-dlp` is an essential external tool that `yt-transcribe` uses to download audio from YouTube videos. The application explicitly checks for its presence. It must be installed and available in your system's `PATH`.
     *   **Installation on Linux/macOS:**
         ```bash
         sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
@@ -30,6 +31,21 @@ Before you can build and run `yt-transcribe`, you'll need the following:
     *   **Installation on Windows:**
         *   Download `yt-dlp.exe` from the [official GitHub releases page](https://github.com/yt-dlp/yt-dlp/releases).
         *   Place the `yt-dlp.exe` file in a directory that is included in your system's `PATH` environment variable (e.g., `C:\Windows`, or a custom directory you've added to PATH).
+
+3.  **`ffmpeg`:**
+    *   `ffmpeg` is required by `yt-dlp` for post-processing audio, such as converting to WAV format. The application explicitly checks for its presence. It must be installed and available in your system's `PATH`.
+    *   **Installation on Linux (Debian/Ubuntu):**
+        ```bash
+        sudo apt update
+        sudo apt install ffmpeg
+        ```
+    *   **Installation on macOS (using Homebrew):**
+        ```bash
+        brew install ffmpeg
+        ```
+    *   **Installation on Windows:**
+        *   Download `ffmpeg` from [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html).
+        *   Add its binaries directory (e.g., `C:\ffmpeg\bin`) to your system's `PATH`.
 
 ### Building the Tool
 
@@ -55,33 +71,22 @@ To run the `yt-transcribe` tool, you need to provide a YouTube video URL using t
 ./yt-transcribe -url <YOUTUBE_VIDEO_URL> [-output <OUTPUT_DIRECTORY>]
 ```
 
-*   Replace `<YOUTUBE_VIDEO_URL>` with the actual link to the YouTube video you want to transcribe.
-*   Replace `<OUTPUT_DIRECTORY>` with the path where you want the transcription `.txt` file to be saved. If omitted, the transcription will be saved in your system's temporary directory.
+*   Replace `<YOUTUBE_VIDEO_URL>` with the actual link to the YouTube video you want to download audio from.
+*   Replace `<OUTPUT_DIRECTORY>` with the path where you want the `.wav` audio file to be saved. If omitted, the audio will be saved in your system's temporary directory.
 
 ### Examples:
 
-1.  **Transcribe a video and save to the default temporary directory:**
+1.  **Download audio and save to the default temporary directory:**
     ```bash
     ./yt-transcribe -url https://www.youtube.com/watch?v=dQw4w9WgXcQ
     ```
+    *(This will save a file like `video_2025-12-31.wav` in your temporary directory)*
 
-2.  **Transcribe a video and save to a specific directory:**
+2.  **Download audio and save to a specific directory:**
     ```bash
-    ./yt-transcribe -url https://www.youtube.com/watch?v=your_video_id -output ~/transcriptions
+    ./yt-transcribe -url https://www.youtube.com/watch?v=your_video_id -output ~/youtube_audio
     ```
-
-## 📝 Note on Transcription Implementation
-
-The current `yt-transcribe` tool uses a **mock `OpenAITranscriber`**. This means that while the audio downloading and file handling logic is fully functional, the transcription itself will return placeholder text rather than actual content from a transcription service.
-
-To enable real transcription, you would need to modify the `Transcribe` method within `pkg/transcriber.go`. This typically involves:
-
-1.  **Obtaining an API Key:** Get an API key from your chosen transcription service (e.g., OpenAI's Whisper API, Google Cloud Speech-to-Text, AssemblyAI).
-2.  **Integrating the API:** Use the service's Go SDK or make direct HTTP requests to their API endpoint.
-3.  **Handling Audio Upload:** Implement the logic to upload the extracted audio file to the transcription service.
-4.  **Parsing Response:** Process the service's response to extract the transcribed text.
-
-This modular design allows you to easily switch to any transcription service by implementing the `transcriber.Transcriber` interface.
+    *(This will save a file like `video_2025-12-31.wav` in the `~/youtube_audio` directory)*
 
 ## 🤝 Contributing
 
