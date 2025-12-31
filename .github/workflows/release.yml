@@ -1,9 +1,9 @@
-name: Go Releases
+name: Go Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -23,12 +23,24 @@ jobs:
         with:
           go-version: "1.22"
 
+      - name: Get next version
+        id: versioning
+        uses: reecetech/version-increment@2024.10.1
+        with:
+          scheme: semver
+          increment: patch
+
+      - name: Create Git Tag
+        run: git tag ${{ steps.versioning.outputs.next_version }}
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
-          # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
           version: latest
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Git Tag
+        run: git push origin ${{ steps.versioning.outputs.next_version }}
