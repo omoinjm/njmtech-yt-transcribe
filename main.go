@@ -21,16 +21,9 @@ func main() {
 	}
 
 	// Define command-line flags
-	videoURL := flag.String("url", "", "YouTube video URL to transcribe")
-	outputDir := flag.String("output", os.TempDir(), "Directory to save downloaded audio and transcription")
+	videoURL := flag.String("url", "https://www.youtube.com/watch?v=rdWZo5PD9Ek", "YouTube video URL to download audio from")
+	outputDir := flag.String("output", os.TempDir(), "Directory to save downloaded audio")
 	flag.Parse()
-
-	// Validate the video URL
-	if *videoURL == "" {
-		fmt.Println("Error: YouTube video URL is required.")
-		flag.Usage()
-		os.Exit(1)
-	}
 
 	fmt.Printf("Transcribing YouTube video from URL: %s\n", *videoURL)
 	fmt.Printf("Output directory: %s\n", *outputDir)

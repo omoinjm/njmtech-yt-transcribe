@@ -65,24 +65,30 @@ Before you can build and run `yt-transcribe`, you'll need the following:
 
 ## 💡 Usage
 
-To run the `yt-transcribe` tool, you need to provide a YouTube video URL using the `-url` flag. You can optionally specify a custom output directory using the `-output` flag.
+To run the `yt-transcribe` tool, you can optionally provide a YouTube video URL using the `-url` flag. If no URL is provided, a default video will be used. You can also specify a custom output directory using the `-output` flag.
 
 ```bash
-./yt-transcribe -url <YOUTUBE_VIDEO_URL> [-output <OUTPUT_DIRECTORY>]
+./yt-transcribe [-url <YOUTUBE_VIDEO_URL>] [-output <OUTPUT_DIRECTORY>]
 ```
 
-*   Replace `<YOUTUBE_VIDEO_URL>` with the actual link to the YouTube video you want to download audio from.
+*   Replace `<YOUTUBE_VIDEO_URL>` with the actual link to the YouTube video you want to download audio from. If omitted, the default URL `https://www.youtube.com/watch?v=rdWZo5PD9Ek` will be used.
 *   Replace `<OUTPUT_DIRECTORY>` with the path where you want the `.wav` audio file to be saved. If omitted, the audio will be saved in your system's temporary directory.
 
 ### Examples:
 
-1.  **Download audio and save to the default temporary directory:**
+1.  **Download audio from the default video and save to the default temporary directory:**
+    ```bash
+    ./yt-transcribe
+    ```
+    *(This will download audio from `https://www.youtube.com/watch?v=rdWZo5PD9Ek` and save a file like `video_2025-12-31.wav` in your temporary directory)*
+
+2.  **Download audio from a specified video and save to the default temporary directory:**
     ```bash
     ./yt-transcribe -url https://www.youtube.com/watch?v=dQw4w9WgXcQ
     ```
     *(This will save a file like `video_2025-12-31.wav` in your temporary directory)*
 
-2.  **Download audio and save to a specific directory:**
+3.  **Download audio from a specified video and save to a specific directory:**
     ```bash
     ./yt-transcribe -url https://www.youtube.com/watch?v=your_video_id -output ~/youtube_audio
     ```
