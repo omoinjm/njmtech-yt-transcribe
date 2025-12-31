@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This project is a Command Line Interface (CLI) tool written in Go that transcribes YouTube videos into text. It operates in two main stages: first, it extracts the audio stream from a specified YouTube video, and then it processes this audio to generate a text transcription. The tool is designed with extensibility and maintainability in mind, adhering to modern software design principles.
+This project is a Command Line Interface (CLI) tool written in Go that downloads audio from YouTube videos. It checks for the presence of `yt-dlp` and `ffmpeg` and prompts the user to install them if they are missing.
 
 ## Main Technologies and Architecture
 
@@ -26,7 +26,7 @@ To build and run this CLI tool, follow these steps:
     Ensure you have Go version `1.25.5` or newer installed on your system. You can download it from [https://golang.org/doc/install](https://golang.org/doc/install).
 
 2.  **Install `yt-dlp`:**
-    The `yt-dlp` command-line tool is a prerequisite for audio downloading. Install it and ensure it's accessible in your system's PATH.
+    The `yt-dlp` command-line tool is a prerequisite for audio downloading. The application explicitly checks for its presence. Install it and ensure it's accessible in your system's PATH.
     *   **Linux/macOS Example:**
         ```bash
         sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
@@ -35,7 +35,7 @@ To build and run this CLI tool, follow these steps:
     *   **Windows:** Download `yt-dlp.exe` from [https://github.com/yt-dlp/yt-dlp/releases](https://github.com/yt-dlp/yt-dlp/releases) and add its directory to your system's PATH.
 
 3.  **Install `ffmpeg`:**
-    `ffmpeg` is required by `yt-dlp` for post-processing audio, such as converting to WAV format. Install it and ensure it's accessible in your system's PATH.
+    `ffmpeg` is required by `yt-dlp` for post-processing audio, such as converting to WAV format. The application explicitly checks for its presence. Install it and ensure it's accessible in your system's PATH.
     *   **Linux (Debian/Ubuntu) Example:**
         ```bash
         sudo apt update
