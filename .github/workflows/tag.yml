@@ -1,0 +1,35 @@
+name: Auto-increment Version Tag
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  increment-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to push new tags
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: '0' # Important for fetching all history to find latest tag
+
+      - name: Get next version
+        id: versioning
+        uses: reecetech/version-increment@2024.10.1
+        with:
+          scheme: semver
+          increment: patch
+
+      - name: Create and push new tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.versioning.outputs.next_version }}
+          git push origin ${{ steps.versioning.outputs.next_version }}
+
+      - name: Output new version
+        run: echo "New version tag: ${{ steps.versioning.outputs.next_version }}"
