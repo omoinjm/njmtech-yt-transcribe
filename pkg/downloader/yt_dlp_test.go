@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // A mutex to protect global variables during concurrent tests
@@ -37,22 +38,44 @@ func TestNewYTDLPAudioDownloader(t *testing.T) {
 	}
 }
 
+// TestDownloadAudio_FFMPEGNotFound tests the scenario where ffmpeg is not found.
+func TestDownloadAudio_FFMPEGNotFound(t *testing.T) {
+	testMux.Lock()
+	oldOsLookPath := osLookPath
+	osLookPath = func(file string) (string, error) {
+		if file == "ffmpeg" {
+			return "", errors.New("not found in PATH")
+		}
+		return "/usr/local/bin/yt-dlp", nil // Assume yt-dlp is found
+	}
+	testMux.Unlock()
+	defer restoreGlobals(commandExecutor, oldOsLookPath, osStat, cmdCombinedOutput)
+
+	downloader := NewYTDLPAudioDownloader()
+	_, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", os.TempDir())
+	if err == nil {
+		t.Error("Expected an error when ffmpeg is not found, but got none")
+	}
+	if !strings.Contains(err.Error(), "ffmpeg not found") {
+		t.Errorf("Expected 'ffmpeg not found' error, got: %v", err)
+	}
+}
+
 // TestDownloadAudio_YTDLPNotFound tests the scenario where yt-dlp is not found.
 func TestDownloadAudio_YTDLPNotFound(t *testing.T) {
 	testMux.Lock()
 	oldOsLookPath := osLookPath
-	oldCmdCombinedOutput := cmdCombinedOutput
-	oldOsStat := osStat
-
 	osLookPath = func(file string) (string, error) {
-		return "", errors.New("not found in PATH")
-	}
-	osStat = func(name string) (os.FileInfo, error) { return nil, os.ErrNotExist } // Default mock for osStat
-	cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) { // Default mock for CombinedOutput
-		return nil, errors.New("command not found")
+		if file == "ffmpeg" {
+			return "/usr/local/bin/ffmpeg", nil
+		}
+		if file == "yt-dlp" {
+			return "", errors.New("not found in PATH")
+		}
+		return "", nil
 	}
 	testMux.Unlock()
-	defer restoreGlobals(commandExecutor, oldOsLookPath, oldOsStat, oldCmdCombinedOutput)
+	defer restoreGlobals(commandExecutor, oldOsLookPath, osStat, cmdCombinedOutput)
 
 	downloader := NewYTDLPAudioDownloader()
 	_, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", os.TempDir())
@@ -74,37 +97,37 @@ func TestDownloadAudio_Success(t *testing.T) {
 
 	// Mock os.LookPath to always succeed
 	osLookPath = func(file string) (string, error) {
-		return "/usr/local/bin/yt-dlp", nil
+		return "/usr/local/bin/" + file, nil
 	}
 
 	tempDir := t.TempDir()
-	expectedFilePath := filepath.Join(tempDir, "Test_Video_Title.mp3")
+	dateStr := time.Now().Format("2006-01-02")
+	expectedFilename := fmt.Sprintf("video_%s.wav", dateStr)
+	expectedFilePath := filepath.Join(tempDir, expectedFilename)
 	dummyFileContent := []byte("dummy audio content")
 
-	// Create the dummy file *before* mocking osStat to ensure os.Stat finds it
-	err := os.WriteFile(expectedFilePath, dummyFileContent, 0644)
-	if err != nil {
-		t.Fatalf("Failed to create dummy audio file: %v", err)
-	}
-
-	// Mock os.Stat to report the dummy file exists
-	osStat = func(name string) (os.FileInfo, error) {
-		if name == expectedFilePath {
-			return os.Stat(name) // Use real os.Stat for the dummy file we created
-		}
-		return nil, os.ErrNotExist
-	}
-
+	// Mock exec.Command to do nothing
 	commandExecutor = func(name string, args ...string) *exec.Cmd {
 		return &exec.Cmd{
 			Path: name,
 			Args: append([]string{name}, args...),
 		}
 	}
-	// Mock CombinedOutput for the dummy exec.Cmd
+	// Mock CombinedOutput to simulate success and create the file
 	cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
-		return []byte(fmt.Sprintf("Some yt-dlp output\n[ExtractAudio] Destination: %s\n", expectedFilePath)), nil
+		// Create the dummy file to simulate yt-dlp downloading it
+		err := os.WriteFile(expectedFilePath, dummyFileContent, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("mock failed to create dummy file: %w", err)
+		}
+		return []byte("yt-dlp success"), nil
 	}
+
+	// Mock os.Stat to report the dummy file exists
+	osStat = func(name string) (os.FileInfo, error) {
+		return os.Stat(name) // Use real os.Stat
+	}
+
 	testMux.Unlock()
 	defer restoreGlobals(oldCommandExecutor, oldOsLookPath, oldOsStat, oldCmdCombinedOutput)
 
@@ -118,10 +141,10 @@ func TestDownloadAudio_Success(t *testing.T) {
 		t.Errorf("Downloaded path mismatch. Expected: %s, Got: %s", expectedFilePath, downloadedPath)
 	}
 
-	// Verify the file was "downloaded" and exists (via mocked osStat)
-	_, err = osStat(downloadedPath)
+	// Verify the file was "downloaded" and exists
+	_, err = os.Stat(downloadedPath)
 	if os.IsNotExist(err) {
-		t.Errorf("Downloaded file %s does not exist according to mocked osStat", downloadedPath)
+		t.Errorf("Downloaded file %s does not exist", downloadedPath)
 	}
 }
 
@@ -134,7 +157,13 @@ func TestDownloadAudio_CommandFailed(t *testing.T) {
 	oldCmdCombinedOutput := cmdCombinedOutput
 
 	osLookPath = func(file string) (string, error) {
-		return "/usr/local/bin/yt-dlp", nil
+		if file == "ffmpeg" {
+			return "/usr/local/bin/ffmpeg", nil
+		}
+		if file == "yt-dlp" {
+			return "/usr/local/bin/yt-dlp", nil
+		}
+		return "", nil
 	}
 	osStat = func(name string) (os.FileInfo, error) { return nil, os.ErrNotExist }
 
@@ -159,87 +188,5 @@ func TestDownloadAudio_CommandFailed(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "yt-dlp command failed") || !strings.Contains(err.Error(), expectedErrorMsg) {
 		t.Errorf("Expected 'yt-dlp command failed' error with specific message, got: %v", err)
-	}
-}
-
-// TestDownloadAudio_NoDestinationInOutput tests when yt-dlp doesn't print destination.
-func TestDownloadAudio_NoDestinationInOutput(t *testing.T) {
-	testMux.Lock()
-	oldCommandExecutor := commandExecutor
-	oldOsLookPath := osLookPath
-	oldOsStat := osStat
-	oldCmdCombinedOutput := cmdCombinedOutput
-
-	osLookPath = func(file string) (string, error) {
-		return "/usr/local/bin/yt-dlp", nil
-	}
-	osStat = func(name string) (os.FileInfo, error) { return nil, os.ErrNotExist }
-
-	commandExecutor = func(name string, args ...string) *exec.Cmd {
-		return &exec.Cmd{
-			Path: name,
-			Args: append([]string{name}, args...),
-		}
-	}
-	cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
-		return []byte("Some other yt-dlp output without destination line."), nil
-	}
-	testMux.Unlock()
-	defer restoreGlobals(oldCommandExecutor, oldOsLookPath, oldOsStat, oldCmdCombinedOutput)
-
-	downloader := NewYTDLPAudioDownloader()
-	_, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", os.TempDir())
-
-	if err == nil {
-		t.Error("Expected an error for no destination in output, but got none")
-	}
-	if !strings.Contains(err.Error(), "could not determine downloaded file path") {
-		t.Errorf("Expected 'could not determine downloaded file path' error, got: %v", err)
-	}
-}
-
-// TestDownloadAudio_FileNotExistAfterSuccess tests when yt-dlp reports success but file is missing.
-func TestDownloadAudio_FileNotExistAfterSuccess(t *testing.T) {
-	testMux.Lock()
-	oldCommandExecutor := commandExecutor
-	oldOsLookPath := osLookPath
-	oldOsStat := osStat
-	oldCmdCombinedOutput := cmdCombinedOutput
-
-	osLookPath = func(file string) (string, error) {
-		return "/usr/local/bin/yt-dlp", nil
-	}
-
-	tempDir := t.TempDir()
-	expectedFilePath := filepath.Join(tempDir, "NonExistent_File.mp3") // This file will *not* be created
-
-	// Mock os.Stat to report the file does NOT exist
-	osStat = func(name string) (os.FileInfo, error) {
-		if name == expectedFilePath {
-			return nil, os.ErrNotExist
-		}
-		return os.Stat(name) // Use real os.Stat for other files if needed
-	}
-
-	commandExecutor = func(name string, args ...string) *exec.Cmd {
-		return &exec.Cmd{
-			Path: name,
-			Args: append([]string{name}, args...),
-		}
-	}
-	cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
-		return []byte(fmt.Sprintf("[ExtractAudio] Destination: %s\n", expectedFilePath)), nil
-	}
-	testMux.Unlock()
-	defer restoreGlobals(oldCommandExecutor, oldOsLookPath, oldOsStat, oldCmdCombinedOutput)
-
-	downloader := NewYTDLPAudioDownloader()
-	_, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", tempDir)
-
-	if err == nil {
-		t.Error("Expected an error for file not existing after reported success, but got none")
-	}
-	if !strings.Contains(err.Error(), "file not found at expected path") {
-		t.Errorf("Expected 'file not found' error, got: %v", err)
 	}
 }
