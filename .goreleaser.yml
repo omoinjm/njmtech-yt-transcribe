@@ -1,3 +1,5 @@
+version: 2
+
 # .goreleaser.yml
 # Visit https://goreleaser.com/customization/ for more options
 before:
