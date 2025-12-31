@@ -45,12 +45,12 @@ func main() {
 	// Initialize the YouTube Downloader
 	ytDownloader := downloader.NewYTDLPAudioDownloader()
 
-	// Initialize the API Key Provider
-	// This uses an environment variable, adhering to secure credential handling.
-	apiKeyProvider := transcriber.NewEnvAPIKeyProvider("OPENAI_API_KEY")
-
-	// Initialize the Transcriber with the injected API Key Provider.
-	audioTranscriber := transcriber.NewOpenAITranscriber(apiKeyProvider)
+	// Initialize the Ollama Transcriber
+	ollamaHost := os.Getenv("OLLAMA_HOST")
+	audioTranscriber, err := transcriber.NewOllamaTranscriber(ollamaHost, "whisper")
+	if err != nil {
+		log.Fatalf("Error creating Ollama transcriber: %v", err)
+	}
 
 	// --- Main application logic ---
 	// 1. Download the audio

@@ -54,7 +54,6 @@ func (d *YTDLPAudioDownloader) DownloadAudio(videoURL string, outputDir string) 
 		"-x", // Extract audio
 		"--audio-format", "mp3", // Convert audio to mp3 format
 		"--output", filepath.Join(outputDir, "% (title)s.%(ext)s"), // Output template
-		"--print-to-stdout", // Print metadata to stdout (though we're parsing stderr for "Destination")
 		"--restrict-filenames", // Keep filenames simple
 		videoURL,
 	)
