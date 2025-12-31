@@ -35,7 +35,7 @@ To build and run this CLI tool, follow these steps:
     *   **Windows:** Download `yt-dlp.exe` from [https://github.com/yt-dlp/yt-dlp/releases](https://github.com/yt-dlp/yt-dlp/releases) and add its directory to your system's PATH.
 
 3.  **Install `ffmpeg`:**
-    `ffmpeg` is required by `yt-dlp` for post-processing audio, such as converting to MP3 format. Install it and ensure it's accessible in your system's PATH.
+    `ffmpeg` is required by `yt-dlp` for post-processing audio, such as converting to WAV format. Install it and ensure it's accessible in your system's PATH.
     *   **Linux (Debian/Ubuntu) Example:**
         ```bash
         sudo apt update
@@ -69,7 +69,7 @@ To build and run this CLI tool, follow these steps:
         ```bash
         ./yt-transcribe -url https://www.youtube.com/watch?v=dQw4w9WgXcQ
         ```
-    *   The transcription will be saved as a `.txt` file. By default, it uses your system's temporary directory for output.
+    *   The downloaded audio will be saved as a `.wav` file. By default, it uses your system's temporary directory for output.
 
 ## Development Conventions
 
@@ -78,6 +78,3 @@ To build and run this CLI tool, follow these steps:
 *   **Clear Comments:** Functions, interfaces, and complex logic sections are well-commented, explaining their purpose, usage, and any external dependencies or conceptual aspects (e.g., the mock transcriber).
 *   **Robust Error Handling:** Errors are managed using Go's idiomatic error return values, and critical failures are handled with `log.Fatalf`.
 *   **Temporary File Management:** Downloaded audio files are treated as temporary and are automatically cleaned up after transcription.
-
----
-**Note on Transcription Implementation:** The current `OllamaTranscriber` uses the `whisper` model. For actual transcription, you would need to have Ollama installed and running with the `whisper` model pulled. The `OLLAMA_HOST` environment variable must be set to the URL of your Ollama server. By default it is `http://localhost:11434`.

@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"time"
 )
 
 // execCommandFunc is a type that allows us to mock os/exec.Command in tests.
@@ -42,18 +42,22 @@ func NewYTDLPAudioDownloader() *YTDLPAudioDownloader {
 // and accessible in the system's PATH.
 //
 // Example yt-dlp command:
-// yt-dlp -x --audio-format wav --output "/path/to/output/%(title)s.%(ext)s" <video-url>
+// yt-dlp -x --audio-format wav --output "/path/to/output/video_2025-12-31.wav" <video-url>
 func (d *YTDLPAudioDownloader) DownloadAudio(videoURL string, outputDir string) (string, error) {
 	// Check if yt-dlp is installed
 	if _, err := osLookPath("yt-dlp"); err != nil {
 		return "", fmt.Errorf("yt-dlp not found in PATH. Please install it to use this feature: %w", err)
 	}
 
+	// Generate filename based on current date
+	dateStr := time.Now().Format("2006-01-02")
+	outputFilename := fmt.Sprintf("video_%s.wav", dateStr)
+
 	cmd := commandExecutor(
 		"yt-dlp",
 		"-x", // Extract audio
-		"--audio-format", "mp3", // Convert audio to mp3 format
-		"--output", filepath.Join(outputDir, "% (title)s.%(ext)s"), // Output template
+		"--audio-format", "wav", // Convert audio to wav format
+		"--output", filepath.Join(outputDir, outputFilename), // Output template
 		"--restrict-filenames", // Keep filenames simple
 		videoURL,
 	)
@@ -65,23 +69,8 @@ func (d *YTDLPAudioDownloader) DownloadAudio(videoURL string, outputDir string) 
 		return "", fmt.Errorf("yt-dlp command failed: %v\nOutput: %s", err, string(output))
 	}
 
-	outputStr := string(output)
-	lines := strings.Split(outputStr, "\n")
-	var downloadedFilePath string
-	for _, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "[ExtractAudio] Destination: ") {
-			downloadedFilePath = strings.TrimSpace(strings.TrimPrefix(line, "[ExtractAudio] Destination: "))
-			break
-		}
-	}
-
-	if downloadedFilePath == "" {
-		return "", fmt.Errorf("could not determine downloaded file path from yt-dlp output:\n%s", outputStr)
-	}
-
-	if !filepath.IsAbs(downloadedFilePath) {
-		downloadedFilePath = filepath.Join(outputDir, filepath.Base(downloadedFilePath))
-	}
+	// The output from yt-dlp now directly gives us the filename
+	downloadedFilePath := filepath.Join(outputDir, outputFilename)
 
 	// Verify the file exists
 	if _, err := osStat(downloadedFilePath); os.IsNotExist(err) {
