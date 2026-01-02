@@ -1,0 +1,27 @@
+FROM mcr.microsoft.com/devcontainers/go:1-1.22-bookworm
+
+ARG USERNAME=vscode
+
+# [Optional] Uncomment this section to install additional OS packages.
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y install --no-install-recommends software-properties-common ffmpeg 
+
+# Set up bash history
+RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
+    && mkdir /commandhistory \
+    && touch /commandhistory/.bash_history \
+    && chown -R $USERNAME /commandhistory \
+    && echo "$SNIPPET" >> "/home/$USERNAME/.bashrc"
+
+# Install yt-dlp
+RUN sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && sudo chmod a+rx /usr/local/bin/yt-dlp
+
+# Install whisper.cpp
+RUN git clone https://github.com/ggml-org/whisper.cpp.git /whisper.cpp \
+    && cd /whisper.cpp \
+    && make \
+    && sh ./models/download-ggml-model.sh base.en \
+    && cmake -B build \
+    && cmake --build build -j --config Release \
+    && cp ./build/bin/whisper-cli /usr/local/bin/whisper-cli
