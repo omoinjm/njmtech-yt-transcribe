@@ -27,7 +27,7 @@ RUN sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dl
 # Install whisper.cpp
 RUN git clone https://github.com/ggml-org/whisper.cpp.git /whisper.cpp \
     && cd /whisper.cpp \
+    && sh ./models/download-ggml-model.sh base.en \
     && cmake -B build -DCMAKE_BUILD_TYPE=Release \
     && cmake --build build -j \
-    && ./models/download-ggml-model.sh base.en \
     && cp build/bin/whisper-cli /usr/local/bin/whisper-cli
