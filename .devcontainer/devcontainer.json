@@ -6,13 +6,16 @@
 
   "dockerFile": "Dockerfile",
   "context": "..",
-  "workspaceFolder": "/workspaces/njmtech-yt-transcript",
+  "workspaceFolder": "/workspaces/njmtech-yt-transcribe",
   "postCreateCommand": "bash .devcontainer/scripts/post-create-commands.sh",
   "postAttachCommand": "bash .devcontainer/scripts/post-attach-commands.sh",
   // Features to add to the dev container. More info: https://containers.dev/features.
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers-contrib/features/zsh-plugins:0": {}
+    "ghcr.io/devcontainers-contrib/features/zsh-plugins:0": {},
+  "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.25"
+    }
   },
 
   // Configure tool-specific properties.
