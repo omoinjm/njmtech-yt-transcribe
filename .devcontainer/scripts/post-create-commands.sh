@@ -3,14 +3,14 @@
 : "${GIT_USER_NAME:?Need to set GIT_USER_NAME}"
 
 # Git config
-chmod 600 $HOME/.ssh/id_ed25519
+chmod 600 $HOME/.ssh/$PVT_SSH_KEY
 eval "$(ssh-agent -s)"
-ssh-add $HOME/.ssh/id_ed25519
+ssh-add $HOME/.ssh/$PVT_SSH_KEY
 
 # Add to .bashrc
-echo "chmod 600 \$HOME/.ssh/id_ed25519" >>~/.bashrc
+echo "chmod 600 \$HOME/.ssh/$PVT_SSH_KEY" >>~/.bashrc
 echo "eval \$(ssh-agent -s)" >>~/.bashrc
-echo "ssh-add \$HOME/.ssh/id_ed25519" >>~/.bashrc
+echo "ssh-add \$HOME/.ssh/$PVT_SSH_KEY" >>~/.bashrc
 
 git config --global --add safe.directory /workspaces/njmtech-yt-transcribe
 
