@@ -6,10 +6,11 @@ import (
 	"log"
 	"os"
 	"strings"
+	"path/filepath"
 
 	"github.com/joho/godotenv" // Import godotenv
 	"yt-transcribe/pkg/downloader"
-	// "yt-transcribe/pkg/transcriber" // Import the transcriber package
+	"yt-transcribe/pkg/transcriber"
 )
 
 func main() {
@@ -37,12 +38,9 @@ func main() {
 	// Initialize the YouTube Downloader
 	ytDownloader := downloader.NewYTDLPAudioDownloader()
 
-	// // Initialize the Ollama Transcriber
-	// ollamaHost := os.Getenv("OLLAMA_HOST")
-	// audioTranscriber, err := transcriber.NewOllamaTranscriber(ollamaHost, "whisper")
-	// if err != nil {
-	// 	log.Fatalf("Error creating Ollama transcriber: %v", err)
-	// }
+	// Initialize the WhisperCPP Transcriber
+	whisperModelPath := "/whisper.cpp/models/ggml-base.en.bin" // User-provided path
+	audioTranscriber := transcriber.NewWhisperCPPTranscriber(whisperModelPath)
 
 	// --- Main application logic ---
 	// 1. Download the audio
@@ -52,30 +50,30 @@ func main() {
 		log.Fatalf("Error downloading audio: %v", err)
 	}
 	fmt.Printf("Audio downloaded to: %s\n", audioFilePath)
-	// defer func() {
-	// 	if err := os.Remove(audioFilePath); err != nil {
-	// 		log.Printf("Warning: could not remove temporary audio file %s: %v", audioFilePath, err)
-	// 	}
-	// 	fmt.Printf("Removed temporary audio file: %s\n", audioFilePath)
-	// }()
+	defer func() {
+		if err := os.Remove(audioFilePath); err != nil {
+			log.Printf("Warning: could not remove temporary audio file %s: %v", audioFilePath, err)
+		}
+		fmt.Printf("Removed temporary audio file: %s\n", audioFilePath)
+	}()
 
-	// // 2. Transcribe the audio
-	// fmt.Println("Transcribing audio...")
-	// transcription, err := audioTranscriber.Transcribe(audioFilePath)
-	// if err != nil {
-	// 	log.Fatalf("Error transcribing audio: %v", err)
-	// }
+	// 2. Transcribe the audio
+	fmt.Println("Transcribing audio...")
+	transcription, err := audioTranscriber.Transcribe(audioFilePath)
+	if err != nil {
+		log.Fatalf("Error transcribing audio: %v", err)
+	}
 
-	// // 3. Output the transcription
-	// outputFileName := filepath.Join(*outputDir, fmt.Sprintf("%s.txt", sanitizeFilename(filepath.Base(*videoURL))))
-	// if err := os.WriteFile(outputFileName, []byte(transcription), 0644); err != nil {
-	// 	log.Fatalf("Error writing transcription to file %s: %v", outputFileName, err)
-	// }
+	// 3. Output the transcription
+	outputFileName := filepath.Join(*outputDir, fmt.Sprintf("%s.txt", sanitizeFilename(filepath.Base(*videoURL))))
+	if err := os.WriteFile(outputFileName, []byte(transcription), 0644); err != nil {
+		log.Fatalf("Error writing transcription to file %s: %v", outputFileName, err)
+	}
 
-	// fmt.Println("\n--- Transcription Complete ---")
-	// fmt.Printf("Transcription saved to: %s\n", outputFileName)
-	// fmt.Println("Content:")
-	// fmt.Println(transcription)
+	fmt.Println("\n--- Transcription Complete ---")
+	fmt.Printf("Transcription saved to: %s\n", outputFileName)
+	fmt.Println("Content:")
+	fmt.Println(transcription)
 }
 
 // sanitizeFilename removes characters that are not safe for filenames.
