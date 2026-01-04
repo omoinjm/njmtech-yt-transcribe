@@ -40,6 +40,7 @@ func (t *WhisperCPPTranscriber) Transcribe(audioFilePath string) (string, error)
 	defer os.RemoveAll(tmpDir) // Clean up the temporary directory
 
 	outputPrefix := filepath.Join(tmpDir, "transcript")
+	// outputFilePath := outputPrefix + ".txt" // whisper-cli adds .txt extension
 	outputFilePath := outputPrefix + ".txt" // whisper-cli adds .txt extension
 
 	// Construct the command
