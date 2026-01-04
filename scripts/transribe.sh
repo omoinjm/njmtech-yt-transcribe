@@ -1,13 +1,10 @@
 #!/bin/bash
 set -e
 
-AUDIO_FILE="/tmp/njmtech-yt-transcribe/audio.wav"
-OUTPUT_PREFIX="/tmp/njmtech-yt-transcribe/transcript"
-WHISPER_CONTEXT="/whisper.cpp/models/ggml-base.en.bin"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(dirname "$SCRIPT_DIR")"
 
-whisper-cli \
-  -m "$WHISPER_CONTEXT" \
-  -f "$AUDIO_FILE" \
-  --output-txt \
-  --output-file "$OUTPUT_PREFIX" \
-  --no-prints
+YT_LINK="https://www.youtube.com/watch?v=rdWZo5PD9Ek"
+OUTPUT_DIR="/tmp/njmtech-yt-transcribe/"
+
+./yt-transcribe -url $YT_LINK -output $OUTPUT_DIR
