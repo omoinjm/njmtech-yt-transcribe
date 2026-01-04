@@ -9,12 +9,12 @@ This project is a Command Line Interface (CLI) tool written in Go that downloads
 *   **Go (Golang):** The core programming language for the CLI tool.
 *   **`flag` package:** Utilized for parsing command-line arguments, allowing users to specify the YouTube video URL and an optional output directory.
 *   **`yt-dlp` (External Tool):** An essential dependency, `yt-dlp` is an external command-line program responsible for reliably downloading and extracting the audio track from YouTube videos. The Go application executes `yt-dlp` as a subprocess.
-*   **Ollama Whisper:** The architecture is designed to integrate with a transcription service, using Ollama's Whisper model.
+*   **whisper.cpp (External Tool):** The project uses `whisper.cpp` for audio transcription. The Go application executes `whisper-cli` as a subprocess.
 
 The project follows a modular architecture based on SOLID principles:
 *   The `main` package orchestrates the overall workflow, handles CLI input, and performs dependency injection.
 *   The `pkg/downloader` package defines the `YouTubeDownloader` interface and provides a concrete `YTDLPAudioDownloader` implementation that interfaces with `yt-dlp`.
-*   The `pkg/transcriber` package defines the `Transcriber` interface and includes a `OllamaTranscriber` that would integrate with a real transcription service.
+*   The `pkg/transcriber` package defines the `Transcriber` interface and includes a `WhisperCPPTranscriber` that interfaces with the `whisper-cli` command.
 
 This design promotes loose coupling, making it straightforward to swap out different audio downloading mechanisms or transcription services without altering the core logic.
 
@@ -47,11 +47,14 @@ To build and run this CLI tool, follow these steps:
         ```
     *   **Windows:** Download `ffmpeg` from [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html) and add its binaries directory to your system's PATH.
 
-4.  **Install and run Ollama**
-    Follow the instruction on [https://ollama.com/](https://ollama.com/) to install and run Ollama. Once Ollama is running, pull the `whisper` model:
-    ```bash
-    ollama pull whisper
-    ```
+4.  **Install and configure `whisper.cpp`:**
+    The `whisper-cli` command-line tool from the `whisper.cpp` project is required for transcription.
+    *   **Installation:** Follow the instructions at [https://github.com/ggerganov/whisper.cpp](https://github.com/ggerganov/whisper.cpp) to build `whisper.cpp` and get the `whisper-cli` executable.
+    *   **Model:** Download a `whisper.cpp` model (e.g., `ggml-base.en.bin`) and place it in a known directory.
+    *   **Environment Variable:** Set the `WHISPER_MODEL_PATH` environment variable to the full path of your downloaded model. You can do this by creating a `.env` file in the project root:
+        ```
+        WHISPER_MODEL_PATH="/path/to/your/ggml-model.bin"
+        ```
 
 5.  **Build the CLI Tool:**
     Navigate to the project's root directory (`/home/user/dev/github/projects/njmtech-yt-transcribe`) in your terminal and compile the application:

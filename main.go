@@ -39,7 +39,11 @@ func main() {
 	ytDownloader := downloader.NewYTDLPAudioDownloader()
 
 	// Initialize the WhisperCPP Transcriber
-	whisperModelPath := "/whisper.cpp/models/ggml-base.en.bin" // User-provided path
+	whisperModelPath := os.Getenv("WHISPER_MODEL_PATH")
+	if whisperModelPath == "" {
+		log.Println("WHISPER_MODEL_PATH environment variable not set. Using default path: /whisper.cpp/models/ggml-base.en.bin")
+		whisperModelPath = "/whisper.cpp/models/ggml-base.en.bin"
+	}
 	audioTranscriber := transcriber.NewWhisperCPPTranscriber(whisperModelPath)
 
 	// --- Main application logic ---
