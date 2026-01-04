@@ -8,6 +8,11 @@ import (
 	"path/filepath"
 )
 
+var (
+	execLookPath = exec.LookPath
+	execCommand  = exec.Command
+)
+
 // WhisperCPPTranscriber implements the Transcriber interface using whisper.cpp.
 type WhisperCPPTranscriber struct {
 	ModelPath string
@@ -22,6 +27,11 @@ func NewWhisperCPPTranscriber(modelPath string) *WhisperCPPTranscriber {
 
 // Transcribe transcribes the given audio file using whisper.cpp.
 func (t *WhisperCPPTranscriber) Transcribe(audioFilePath string) (string, error) {
+	// Check if whisper-cli is available
+	if _, err := execLookPath("whisper-cli"); err != nil {
+		return "", fmt.Errorf("whisper-cli not found in PATH: %w", err)
+	}
+
 	// Create a temporary directory for output files
 	tmpDir, err := os.MkdirTemp("", "whisper-transcript-")
 	if err != nil {
@@ -41,7 +51,7 @@ func (t *WhisperCPPTranscriber) Transcribe(audioFilePath string) (string, error)
 		"--no-prints",
 	}
 
-	cmd := exec.Command("whisper-cli", cmdArgs...)
+	cmd := execCommand("whisper-cli", cmdArgs...)
 
 	// Execute the command
 	output, err := cmd.CombinedOutput()
