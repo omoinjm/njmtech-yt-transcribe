@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"net/http"
 
 	"github.com/joho/godotenv" // Import godotenv
@@ -81,9 +80,18 @@ func main() {
 		log.Fatalf("Error transcribing audio: %v", err)
 	}
 
-	// 3. Upload the transcription
+	// 3. Save the transcription to a local file
+	transcriptFilename := "transcript.txt"
+	transcriptFilepath := filepath.Join(*outputDir, transcriptFilename)
+	err = os.WriteFile(transcriptFilepath, []byte(transcription), 0644)
+	if err != nil {
+		log.Fatalf("Error saving transcription to file: %v", err)
+	}
+	fmt.Printf("Transcription saved to: %s\n", transcriptFilepath)
+
+	// 4. Upload the transcription
 	fmt.Println("Uploading transcription...")
-	uploadResponse, err := blobUploader.Upload(transcription, fmt.Sprintf("%s.txt", sanitizeFilename(filepath.Base(*videoURL))))
+	uploadResponse, err := blobUploader.Upload(transcription, transcriptFilename)
 	if err != nil {
 		log.Fatalf("Error uploading transcription: %v", err)
 	}
@@ -91,19 +99,4 @@ func main() {
 	fmt.Println("\n--- Transcription Upload Complete ---")
 	fmt.Println("Response from Vercel Blob API:")
 	fmt.Println(uploadResponse)
-}
-
-// sanitizeFilename removes characters that are not safe for filenames.
-func sanitizeFilename(s string) string {
-	s = strings.ReplaceAll(s, " ", "_")
-	s = strings.ReplaceAll(s, "/", "_")
-	s = strings.ReplaceAll(s, "\\", "_")
-	s = strings.ReplaceAll(s, ":", "_")
-	s = strings.ReplaceAll(s, "*", "_")
-	s = strings.ReplaceAll(s, "?", "_")
-	s = strings.ReplaceAll(s, "\"", "_")
-	s = strings.ReplaceAll(s, "<", "_")
-	s = strings.ReplaceAll(s, ">", "_")
-	s = strings.ReplaceAll(s, "|", "_")
-	return s
 }

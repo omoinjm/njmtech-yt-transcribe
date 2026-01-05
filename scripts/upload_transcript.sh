@@ -1,13 +1,10 @@
 #!/bin/bash
 set -e
 
-AUDIO_FILE="/tmp/njmtech-yt-transcribe/audio.wav"
-OUTPUT_PREFIX="/tmp/njmtech-yt-transcribe/transcript"
-WHISPER_CONTEXT="/whisper.cpp/models/ggml-base.en.bin"
+TRANSCRIPT_FILE="/tmp/njmtech-yt-transcribe/audio.wav"
+API_TOKEN="9kKAtYdMCgmGrMAVS818vnOkoHfDZkc9i"
 
-whisper-cli \
-  -m "$WHISPER_CONTEXT" \
-  -f "$AUDIO_FILE" \
-  --output-txt \
-  --output-file "$OUTPUT_PREFIX" \
-  --no-prints
+curl -X POST \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -F "$TRANSCRIPT_FILE" \
+  https://njmtech-blob.vercel.app/api/v1/blob/upload
