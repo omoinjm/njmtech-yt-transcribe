@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	// "time"
+	"time"
 )
 
 // execCommandFunc is a type that allows us to mock os/exec.Command in tests.
@@ -55,9 +55,8 @@ func (d *YTDLPAudioDownloader) DownloadAudio(videoURL string, outputDir string) 
 	}
 
 	// Generate filename based on current date
-	// dateStr := time.Now().Format("2006-01-02")
-	// outputFilename := fmt.Sprintf("video_%s.wav", dateStr)
-	outputFilename := "audio.wav"
+	dateStr := time.Now().Format("2006-01-02")
+	outputFilename := fmt.Sprintf("video_%s.wav", dateStr)
 
 	cmd := commandExecutor(
 		"yt-dlp",

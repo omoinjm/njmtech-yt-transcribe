@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
+	"net/http"
 
 	"github.com/joho/godotenv" // Import godotenv
 	"yt-transcribe/pkg/downloader"
 	"yt-transcribe/pkg/transcriber"
+	"yt-transcribe/pkg/uploader"
 )
 
 func main() {
@@ -41,10 +43,20 @@ func main() {
 	// Initialize the WhisperCPP Transcriber
 	whisperModelPath := os.Getenv("WHISPER_MODEL_PATH")
 	if whisperModelPath == "" {
-		log.Println("WHISPER_MODEL_PATH environment variable not set. Using default path: /whisper.cpp/models/ggml-base.en.bin")
-		whisperModelPath = "/whisper.cpp/models/ggml-base.en.bin"
+		log.Println("WHISPER_MODEL_PATH environment variable not set.")
 	}
 	audioTranscriber := transcriber.NewWhisperCPPTranscriber(whisperModelPath)
+
+	// Initialize the Vercel Blob Uploader
+	vercelBlobAPIURL := os.Getenv("VERCEL_BLOB_API_URL")
+	if vercelBlobAPIURL == "" {
+		log.Fatalf("VERCEL_BLOB_API_URL environment variable not set.")
+	}
+	vercelBlobAPIToken := os.Getenv("VERCEL_BLOB_API_TOKEN")
+	if vercelBlobAPIToken == "" {
+		log.Fatalf("VERCEL_BLOB_API_TOKEN environment variable not set.")
+	}
+	blobUploader := uploader.NewVercelBlobUploader(vercelBlobAPIURL, vercelBlobAPIToken, &http.Client{})
 
 	// --- Main application logic ---
 	// 1. Download the audio
@@ -63,21 +75,22 @@ func main() {
 
 	// 2. Transcribe the audio
 	fmt.Println("Transcribing audio...")
+
 	transcription, err := audioTranscriber.Transcribe(audioFilePath)
 	if err != nil {
 		log.Fatalf("Error transcribing audio: %v", err)
 	}
 
-	// 3. Output the transcription
-	outputFileName := filepath.Join(*outputDir, fmt.Sprintf("%s.txt", sanitizeFilename(filepath.Base(*videoURL))))
-	if err := os.WriteFile(outputFileName, []byte(transcription), 0644); err != nil {
-		log.Fatalf("Error writing transcription to file %s: %v", outputFileName, err)
+	// 3. Upload the transcription
+	fmt.Println("Uploading transcription...")
+	uploadResponse, err := blobUploader.Upload(transcription, fmt.Sprintf("%s.txt", sanitizeFilename(filepath.Base(*videoURL))))
+	if err != nil {
+		log.Fatalf("Error uploading transcription: %v", err)
 	}
 
-	fmt.Println("\n--- Transcription Complete ---")
-	fmt.Printf("Transcription saved to: %s\n", outputFileName)
-	fmt.Println("Content:")
-	fmt.Println(transcription)
+	fmt.Println("\n--- Transcription Upload Complete ---")
+	fmt.Println("Response from Vercel Blob API:")
+	fmt.Println(uploadResponse)
 }
 
 // sanitizeFilename removes characters that are not safe for filenames.
