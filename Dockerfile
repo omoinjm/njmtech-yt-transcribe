@@ -4,15 +4,7 @@ FROM golang:1.22-alpine AS builder
 
 # Install necessary dependencies: git for fetching Go modules,
 # and build-base for cgo if any dependencies require it.
-RUN apk add --no-cache \
-    git \
-    cmake \
-    make \
-    g++ \
-    gcc \
-    build-base \
-    curl \
-    bash
+RUN apk add --no-cache git build-base
 
 # Set the working directory inside the container.
 WORKDIR /app
@@ -35,7 +27,7 @@ FROM alpine:latest
 
 # Install runtime dependencies: ffmpeg, curl, cmake, build-base.
 # cmake and build-base are needed for building whisper.cpp.
-RUN apk add --no-cache ffmpeg curl cmake build-base
+RUN apk add --no-cache ffmpeg curl cmake build-base git
 
 # Install yt-dlp from the latest release on GitHub.
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
