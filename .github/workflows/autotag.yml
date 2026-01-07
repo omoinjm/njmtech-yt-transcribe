@@ -1,9 +1,10 @@
-name: Go Release
+name: Go Release note
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Go Build & Test"]
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -44,3 +45,4 @@ jobs:
 
       - name: Push Git Tag
         run: git push origin ${{ steps.versioning.outputs.next_version }}
+
