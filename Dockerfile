@@ -1,6 +1,6 @@
 # Use a multi-stage build to create a lean final image.
 # Stage 1: Build the Go application
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Install necessary dependencies: git for fetching Go modules,
 # and build-base for cgo if any dependencies require it.
