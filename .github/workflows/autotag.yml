@@ -5,6 +5,8 @@ on:
     workflows: ["Go Build & Test"]
     types:
       - completed
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -45,4 +47,3 @@ jobs:
 
       - name: Push Git Tag
         run: git push origin ${{ steps.versioning.outputs.next_version }}
-

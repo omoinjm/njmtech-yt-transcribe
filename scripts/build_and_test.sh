@@ -10,4 +10,4 @@ go build -a -v -o yt-transcribe
 sleep 3
 
 echo "Running tests..."
-go test -v ./...
+go test -v ./
