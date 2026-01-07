@@ -4,7 +4,15 @@ FROM golang:1.22-alpine AS builder
 
 # Install necessary dependencies: git for fetching Go modules,
 # and build-base for cgo if any dependencies require it.
-RUN apk add --no-cache git build-base
+RUN apk add --no-cache \
+    git \
+    cmake \
+    make \
+    g++ \
+    gcc \
+    build-base \
+    curl \
+    bash
 
 # Set the working directory inside the container.
 WORKDIR /app
