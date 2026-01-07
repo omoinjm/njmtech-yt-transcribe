@@ -8,6 +8,7 @@ on:
       - production
       - staging
       - development
+  workflow_call:
 
 jobs:
   build-and-test:

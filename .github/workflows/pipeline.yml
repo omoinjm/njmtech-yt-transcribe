@@ -1,0 +1,19 @@
+name: Full Pipeline
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  ci:
+    uses: ./.github/workflows/go-ci.yml
+
+  docker:
+    needs: ci
+    uses: ./.github/workflows/docker.yml
+    secrets: inherit
+
+  release:
+    needs: ci
+    uses: ./.github/workflows/autotag.yml
+    secrets: inherit

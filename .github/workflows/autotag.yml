@@ -1,18 +1,13 @@
 name: Go Release note
 on:
-  workflow_run:
-    workflows: ["Go Build & Test"]
-    types:
-      - completed
-    branches:
-      - main
+  workflow_call: # Changed from workflow_run
+
 permissions:
   contents: write
   packages: write
+
 jobs:
   goreleaser:
-    # Only run if the triggering workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
