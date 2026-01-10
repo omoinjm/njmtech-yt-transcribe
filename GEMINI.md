@@ -1,19 +1,19 @@
-# Project: yt-transcribe - YouTube Video Transcriber CLI
+# Project: yt-transcribe - Video Transcriber CLI
 
 ## Project Overview
 
-This project is a Command Line Interface (CLI) tool written in Go that downloads audio from YouTube videos. It checks for the presence of `yt-dlp` and `ffmpeg` and prompts the user to install them if they are missing.
+This project is a Command Line Interface (CLI) tool written in Go that downloads audio from various video platforms like YouTube and Instagram. It checks for the presence of `yt-dlp` and `ffmpeg` and prompts the user to install them if they are missing.
 
 ## Main Technologies and Architecture
 
 *   **Go (Golang):** The core programming language for the CLI tool.
-*   **`flag` package:** Utilized for parsing command-line arguments, allowing users to specify the YouTube video URL and an optional output directory.
-*   **`yt-dlp` (External Tool):** An essential dependency, `yt-dlp` is an external command-line program responsible for reliably downloading and extracting the audio track from YouTube videos. The Go application executes `yt-dlp` as a subprocess.
+*   **`flag` package:** Utilized for parsing command-line arguments, allowing users to specify the video URL and an optional output directory.
+*   **`yt-dlp` (External Tool):** An essential dependency, `yt-dlp` is an external command-line program responsible for reliably downloading and extracting the audio track from videos on various platforms. The Go application executes `yt-dlp` as a subprocess.
 *   **whisper.cpp (External Tool):** The project uses `whisper.cpp` for audio transcription. The Go application executes `whisper-cli` as a subprocess.
 
 The project follows a modular architecture based on SOLID principles:
 *   The `main` package orchestrates the overall workflow, handles CLI input, and performs dependency injection.
-*   The `pkg/downloader` package defines the `YouTubeDownloader` interface and provides a concrete `YTDLPAudioDownloader` implementation that interfaces with `yt-dlp`.
+*   The `pkg/downloader` package defines the `VideoDownloader` interface and provides a concrete `YTDLPAudioDownloader` implementation that interfaces with `yt-dlp`.
 *   The `pkg/transcriber` package defines the `Transcriber` interface and includes a `WhisperCPPTranscriber` that interfaces with the `whisper-cli` command.
 
 This design promotes loose coupling, making it straightforward to swap out different audio downloading mechanisms or transcription services without altering the core logic.
@@ -64,9 +64,9 @@ To build and run this CLI tool, follow these steps:
     This will create an executable named `yt-transcribe` (or `yt-transcribe.exe` on Windows) in the current directory.
 
 6.  **Run the Tool:**
-    Execute the tool by providing a YouTube video URL using the `-url` flag. You can also specify a custom output directory with the `-output` flag.
+    Execute the tool by providing a video URL using the `-url` flag. You can also specify a custom output directory with the `-output` flag.
     ```bash
-    ./yt-transcribe -url <YOUTUBE_VIDEO_URL> [-output <OUTPUT_DIRECTORY>]
+    ./yt-transcribe -url <VIDEO_URL> [-output <OUTPUT_DIRECTORY>]
     ```
     *   **Example Usage:**
         ```bash
@@ -77,7 +77,7 @@ To build and run this CLI tool, follow these steps:
 ## Development Conventions
 
 *   **Go Standard Formatting:** The codebase adheres to standard Go formatting practices, ensuring readability and consistency.
-*   **SOLID Principles:** The design heavily utilizes interfaces (`YouTubeDownloader`, `Transcriber`) to promote modularity, extensibility, and testability, in line with SOLID principles (e.g., Dependency Inversion, Interface Segregation).
+*   **SOLID Principles:** The design heavily utilizes interfaces (`VideoDownloader`, `Transcriber`) to promote modularity, extensibility, and testability, in line with SOLID principles (e.g., Dependency Inversion, Interface Segregation).
 *   **Clear Comments:** Functions, interfaces, and complex logic sections are well-commented, explaining their purpose, usage, and any external dependencies or conceptual aspects (e.g., the mock transcriber).
 *   **Robust Error Handling:** Errors are managed using Go's idiomatic error return values, and critical failures are handled with `log.Fatalf`.
 *   **Temporary File Management:** Downloaded audio files are treated as temporary and are automatically cleaned up after transcription.

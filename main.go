@@ -4,9 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
-	"net/http"
+	"strings"
+	"time"
 
 	"github.com/joho/godotenv" // Import godotenv
 	"yt-transcribe/pkg/downloader"
@@ -23,11 +25,11 @@ func main() {
 	}
 
 	// Define command-line flags
-	videoURL := flag.String("url", "https://www.youtube.com/watch?v=rdWZo5PD9Ek", "YouTube video URL to download audio from")
+	videoURL := flag.String("url", "https://www.youtube.com/watch?v=rdWZo5PD9Ek", "Video URL to download audio from")
 	outputDir := flag.String("output", os.TempDir(), "Directory to save downloaded audio")
 	flag.Parse()
 
-	fmt.Printf("Transcribing YouTube video from URL: %s\n", *videoURL)
+	fmt.Printf("Transcribing video from URL: %s\n", *videoURL)
 	fmt.Printf("Output directory: %s\n", *outputDir)
 
 	// Ensure the output directory exists
@@ -36,8 +38,8 @@ func main() {
 	}
 
 	// --- Dependency Injection setup ---
-	// Initialize the YouTube Downloader
-	ytDownloader := downloader.NewYTDLPAudioDownloader()
+	// Initialize the Video Downloader
+	videoDownloader := downloader.NewYTDLPAudioDownloader()
 
 	// Initialize the WhisperCPP Transcriber
 	whisperModelPath := os.Getenv("WHISPER_MODEL_PATH")
@@ -60,7 +62,7 @@ func main() {
 	// --- Main application logic ---
 	// 1. Download the audio
 	fmt.Println("Downloading audio...")
-	audioFilePath, err := ytDownloader.DownloadAudio(*videoURL, *outputDir)
+	audioFilePath, err := videoDownloader.DownloadAudio(*videoURL, *outputDir)
 	if err != nil {
 		log.Fatalf("Error downloading audio: %v", err)
 	}
@@ -81,17 +83,40 @@ func main() {
 	}
 
 	// 3. Save the transcription to a local file
-	transcriptFilename := "transcript.txt"
-	transcriptFilepath := filepath.Join(*outputDir, transcriptFilename)
-	err = os.WriteFile(transcriptFilepath, []byte(transcription), 0644)
+	// 3. Save the transcription to a local file and prepare for upload
+	platform := "other"
+	if strings.Contains(*videoURL, "youtube.com") {
+		platform = "youtube"
+	} else if strings.Contains(*videoURL, "instagram.com") {
+		platform = "instagram"
+	}
+
+	dateTimeNow := time.Now().Format("2006-01-02_15:04:05") // More standard format for filename
+
+	var transcriptPath string
+	if platform == "instagram" {
+		transcriptPath = filepath.Join("njmtech", platform, dateTimeNow, "transript")
+	} else {
+		// all other platforms will be saved under the youtube directory
+		transcriptPath = filepath.Join("njmtech", "youtube", dateTimeNow, "transcript")
+	}
+
+	// Create local directory for the transcript file
+	if err := os.MkdirAll(filepath.Dir(transcriptPath), 0755); err != nil {
+		log.Fatalf("Error creating transcript directory: %v", err)
+	}
+
+	err = os.WriteFile(transcriptPath, []byte(transcription), 0644)
 	if err != nil {
 		log.Fatalf("Error saving transcription to file: %v", err)
 	}
-	fmt.Printf("Transcription saved to: %s\n", transcriptFilepath)
+	fmt.Printf("Transcription saved to: %s\n", transcriptPath)
 
 	// 4. Upload the transcription
 	fmt.Println("Uploading transcription...")
-	uploadResponse, err := blobUploader.Upload(transcription, transcriptFilename)
+	// The upload path for vercel blob should use forward slashes, even on windows.
+	uploadPath := strings.ReplaceAll(transcriptPath, string(filepath.Separator), "/")
+	uploadResponse, err := blobUploader.Upload(transcription, uploadPath)
 	if err != nil {
 		log.Fatalf("Error uploading transcription: %v", err)
 	}

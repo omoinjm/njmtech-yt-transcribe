@@ -1,10 +1,10 @@
-# YouTube Video Downloader CLI (yt-transcribe)
+# Video Transcriber CLI (yt-transcribe)
 
-`yt-transcribe` is a command-line interface (CLI) tool written in Go that allows you to download audio from YouTube videos. It leverages the powerful `yt-dlp` tool to extract audio and `ffmpeg` to convert it to WAV format.
+`yt-transcribe` is a command-line interface (CLI) tool written in Go that allows you to download and transcribe audio from various video platforms. It leverages the powerful `yt-dlp` tool to extract audio and `ffmpeg` to convert it to WAV format.
 
 ## ✨ Features
 
-- **YouTube Audio Extraction:** Downloads the audio stream from any valid YouTube video URL.
+- **Video Audio Extraction:** Downloads the audio stream from any valid video URL supported by `yt-dlp` (including YouTube, Instagram, and more).
 - **WAV Format Output:** Converts downloaded audio to high-quality WAV format.
 - **Date-Based Naming:** Saves audio files with a `video_YYYY-MM-DD.wav` naming convention.
 - **Customizable Output Directory:** Allows specifying an output directory for the downloaded audio file.
@@ -75,13 +75,13 @@ Before you can build and run `yt-transcribe`, you'll need the following:
 
 ## 💡 Usage
 
-To run the `yt-transcribe` tool, you can optionally provide a YouTube video URL using the `-url` flag. If no URL is provided, a default video will be used. You can also specify a custom output directory using the `-output` flag.
+To run the `yt-transcribe` tool, you can optionally provide a video URL using the `-url` flag. If no URL is provided, a default video will be used. You can also specify a custom output directory using the `-output` flag.
 
 ```bash
-./yt-transcribe [-url <YOUTUBE_VIDEO_URL>] [-output <OUTPUT_DIRECTORY>]
+./yt-transcribe [-url <VIDEO_URL>] [-output <OUTPUT_DIRECTORY>]
 ```
 
-- Replace `<YOUTUBE_VIDEO_URL>` with the actual link to the YouTube video you want to download audio from. If omitted, the default URL `https://www.youtube.com/watch?v=rdWZo5PD9Ek` will be used.
+- Replace `<VIDEO_URL>` with the actual link to the video you want to download audio from. If omitted, the default URL `https://www.youtube.com/watch?v=rdWZo5PD9Ek` will be used.
 - Replace `<OUTPUT_DIRECTORY>` with the path where you want the `.wav` audio file to be saved. If omitted, the audio will be saved in your system's temporary directory.
 
 ### Examples:
