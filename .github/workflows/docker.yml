@@ -1,9 +1,17 @@
 name: Docker Build & Push
 on:
-  workflow_call: # Changed from workflow_run
+  workflow_run:
+    workflows: ["Go Build & Test"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   build-and-push:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

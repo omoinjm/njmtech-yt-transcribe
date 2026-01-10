@@ -2,12 +2,7 @@ name: Go Build & Test
 
 on:
   push:
-    branches:
-      - main
-      - master
-      - production
-      - staging
-      - development
+    branches: ["main", "master", "production", "staging", "development"]
   workflow_call:
 
 jobs:
