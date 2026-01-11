@@ -6,5 +6,5 @@ API_TOKEN="9kKAtYdMCgmGrMAVS818vnOkoHfDZkc9i"
 
 curl -X POST \
   -H "Authorization: Bearer $API_TOKEN" \
-  -F "$TRANSCRIPT_FILE" \
-  https://njmtech-blob.vercel.app/api/v1/blob/upload
+  -F "file=@${TRANSCRIPT_FILE}" \
+  https://njmtech-blob.vercel.app/api/v1/blob/upload | jq
