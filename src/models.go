@@ -4,7 +4,7 @@ package src
 // VideoDownloader defines the interface for downloading audio from videos.
 // Applying the Interface Segregation Principle (ISP) and Dependency Inversion Principle (DIP).
 type VideoDownloader interface {
-	DownloadAudio(videoURL string, outputDir string) (string, error)
+	DownloadAudio(videoURL string, outputDir string) (filePath string, videoID string, err error)
 }
 
 // Transcriber defines the interface for transcribing audio files into text.

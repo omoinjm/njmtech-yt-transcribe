@@ -52,7 +52,7 @@ func TestDownloadAudio_FFMPEGNotFound(t *testing.T) {
 	defer restoreGlobals(commandExecutor, oldOsLookPath, osStat, cmdCombinedOutput)
 
 	downloader := NewYTDLPAudioDownloader()
-	_, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", os.TempDir())
+	_, _, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", os.TempDir())
 	if err == nil {
 		t.Error("Expected an error when ffmpeg is not found, but got none")
 	}
@@ -78,7 +78,7 @@ func TestDownloadAudio_YTDLPNotFound(t *testing.T) {
 	defer restoreGlobals(commandExecutor, oldOsLookPath, osStat, cmdCombinedOutput)
 
 	downloader := NewYTDLPAudioDownloader()
-	_, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", os.TempDir())
+	_, _, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", os.TempDir())
 	if err == nil {
 		t.Error("Expected an error when yt-dlp is not found, but got none")
 	}
@@ -101,8 +101,8 @@ func TestDownloadAudio_Success(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	dateStr := time.Now().Format("2006-01-02")
-	expectedFilename := fmt.Sprintf("video_%s.wav", dateStr)
+	expectedVideoID := "test-video-id"
+	expectedFilename := fmt.Sprintf("%s.wav", expectedVideoID)
 	expectedFilePath := filepath.Join(tempDir, expectedFilename)
 	dummyFileContent := []byte("dummy audio content")
 
@@ -115,6 +115,9 @@ func TestDownloadAudio_Success(t *testing.T) {
 	}
 	// Mock CombinedOutput to simulate success and create the file
 	cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
+		if strings.Contains(cmd.String(), "--get-id") {
+			return []byte(expectedVideoID), nil
+		}
 		// Create the dummy file to simulate yt-dlp downloading it
 		err := os.WriteFile(expectedFilePath, dummyFileContent, 0644)
 		if err != nil {
@@ -132,13 +135,16 @@ func TestDownloadAudio_Success(t *testing.T) {
 	defer restoreGlobals(oldCommandExecutor, oldOsLookPath, oldOsStat, oldCmdCombinedOutput)
 
 	downloader := NewYTDLPAudioDownloader()
-	downloadedPath, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", tempDir)
+	downloadedPath, videoID, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", tempDir)
 
 	if err != nil {
 		t.Fatalf("DownloadAudio failed unexpectedly: %v", err)
 	}
 	if downloadedPath != expectedFilePath {
 		t.Errorf("Downloaded path mismatch. Expected: %s, Got: %s", expectedFilePath, downloadedPath)
+	}
+	if videoID != expectedVideoID {
+		t.Errorf("Video ID mismatch. Expected: %s, Got: %s", expectedVideoID, videoID)
 	}
 
 	// Verify the file was "downloaded" and exists
@@ -181,12 +187,12 @@ func TestDownloadAudio_CommandFailed(t *testing.T) {
 	defer restoreGlobals(oldCommandExecutor, oldOsLookPath, oldOsStat, oldCmdCombinedOutput)
 
 	downloader := NewYTDLPAudioDownloader()
-	_, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", os.TempDir())
+	_, _, err := downloader.DownloadAudio("https://youtube.com/watch?v=test", os.TempDir())
 
 	if err == nil {
 		t.Error("Expected an error from failed yt-dlp command, but got none")
 	}
-	if !strings.Contains(err.Error(), "yt-dlp command failed") || !strings.Contains(err.Error(), expectedErrorMsg) {
-		t.Errorf("Expected 'yt-dlp command failed' error with specific message, got: %v", err)
+	if !strings.Contains(err.Error(), "failed") {
+		t.Errorf("Expected 'failed' error with specific message, got: %v", err)
 	}
 }

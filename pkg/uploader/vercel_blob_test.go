@@ -44,12 +44,16 @@ func TestNewVercelBlobUploader(t *testing.T) {
 // TestUpload_Success tests a successful upload scenario.
 func TestUpload_Success(t *testing.T) {
 	expectedResponse := "upload successful"
+	filename := "test.txt"
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
 		if r.Header.Get("Authorization") != "Bearer test-token" {
 			t.Errorf("Expected Authorization header 'Bearer test-token', got %s", r.Header.Get("Authorization"))
+		}
+		if blobPath := r.URL.Query().Get("blob_path"); blobPath != filename {
+			t.Errorf("Expected blob_path query parameter to be '%s', got '%s'", filename, blobPath)
 		}
 
 		// Read the body to ensure it's a multipart form
@@ -65,7 +69,6 @@ func TestUpload_Success(t *testing.T) {
 
 	uploader := NewVercelBlobUploader(testServer.URL, "test-token", nil)
 	content := "test content"
-	filename := "test.txt"
 
 	response, err := uploader.Upload(content, filename)
 
@@ -177,8 +180,13 @@ func TestUpload_CopyToFormFileError(t *testing.T) {
 }
 
 func TestUpload_CustomHTTPClient(t *testing.T) {
+	filename := "test.txt"
 	mockClient := &MockHTTPClient{
 		DoFunc: func(req *http.Request) (*http.Response, error) {
+			expectedURLPart := "?blob_path=" + filename
+			if !strings.Contains(req.URL.String(), expectedURLPart) {
+				t.Errorf("Expected URL to contain '%s', but it was '%s'", expectedURLPart, req.URL.String())
+			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader("mocked response")),
@@ -188,7 +196,6 @@ func TestUpload_CustomHTTPClient(t *testing.T) {
 
 	uploader := NewVercelBlobUploader("https://example.com/api", "test-token", mockClient)
 	content := "test content"
-	filename := "test.txt"
 
 	response, err := uploader.Upload(content, filename)
 

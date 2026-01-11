@@ -4,32 +4,31 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
 const (
-	PLATFORM_OTHER      = "other"
-	PLATFORM_YOUTUBE    = "youtube"
-	PLATFORM_INSTAGRAM  = "instagram"
-	TRANSCRIPT_FILE     = "transcript.txt"
-	TRANSCRIPT_DIR      = "/tmp/njmtech-yt-transcribe"
+	APP_NAME           = "yt-transcribe"
+	PLATFORM_OTHER     = "other"
+	PLATFORM_YOUTUBE   = "youtube"
+	PLATFORM_INSTAGRAM = "instagram"
+	TRANSCRIPT_DIR     = "/tmp/njmtech-yt-transcribe"
 )
 
 // TranscriptionServiceImpl is the implementation of the TranscriptionService interface.
 type TranscriptionServiceImpl struct {
-	Downloader      VideoDownloader
-	Transcriber     Transcriber
-	Uploader        Uploader
+	Downloader       VideoDownloader
+	Transcriber      Transcriber
+	Uploader         Uploader
 	WhisperModelPath string
 }
 
 // NewTranscriptionService creates a new TranscriptionServiceImpl.
 func NewTranscriptionService(downloader VideoDownloader, transcriber Transcriber, uploader Uploader, whisperModelPath string) TranscriptionService {
 	return &TranscriptionServiceImpl{
-		Downloader:      downloader,
-		Transcriber:     transcriber,
-		Uploader:        uploader,
+		Downloader:       downloader,
+		Transcriber:      transcriber,
+		Uploader:         uploader,
 		WhisperModelPath: whisperModelPath,
 	}
 }
@@ -38,7 +37,7 @@ func NewTranscriptionService(downloader VideoDownloader, transcriber Transcriber
 func (s *TranscriptionServiceImpl) Execute(videoURL, outputDir string) error {
 	// 1. Download the audio
 	fmt.Println("Downloading audio...")
-	audioFilePath, err := s.Downloader.DownloadAudio(videoURL, outputDir)
+	audioFilePath, videoID, err := s.Downloader.DownloadAudio(videoURL, outputDir)
 	if err != nil {
 		return fmt.Errorf("error downloading audio: %w", err)
 	}
@@ -57,7 +56,7 @@ func (s *TranscriptionServiceImpl) Execute(videoURL, outputDir string) error {
 		return fmt.Errorf("error transcribing audio: %w", err)
 	}
 
-	// 3. Save the transcription to a local file and prepare for upload
+	// 3. Determine platform for upload path
 	platform := PLATFORM_OTHER
 	if strings.Contains(videoURL, "youtube.com") {
 		platform = PLATFORM_YOUTUBE
@@ -65,29 +64,10 @@ func (s *TranscriptionServiceImpl) Execute(videoURL, outputDir string) error {
 		platform = PLATFORM_INSTAGRAM
 	}
 
-	var transcriptPath string
-	if platform == PLATFORM_INSTAGRAM {
-		transcriptPath = filepath.Join(TRANSCRIPT_DIR, platform, TRANSCRIPT_FILE)
-	} else {
-		// all other platforms will be saved under the youtube directory
-		transcriptPath = filepath.Join(TRANSCRIPT_DIR, PLATFORM_YOUTUBE, TRANSCRIPT_FILE)
-	}
-
-	// Create local directory for the transcript file
-	if err := os.MkdirAll(filepath.Dir(transcriptPath), 0755); err != nil {
-		return fmt.Errorf("error creating transcript directory: %w", err)
-	}
-
-	err = os.WriteFile(transcriptPath, []byte(transcription), 0644)
-	if err != nil {
-		return fmt.Errorf("error saving transcription to file: %w", err)
-	}
-	fmt.Printf("Transcription saved to: %s\n", transcriptPath)
-
 	// 4. Upload the transcription
 	fmt.Println("Uploading transcription...")
-	// The upload path for vercel blob should use forward slashes, even on windows.
-	uploadPath := strings.ReplaceAll(transcriptPath, string(filepath.Separator), "/")
+	// The upload path for vercel blob should be in the format: <app_name>/<platform>/<videoID>
+	uploadPath := fmt.Sprintf("%s/%s/%s", APP_NAME, platform, videoID)
 	uploadResponse, err := s.Uploader.Upload(transcription, uploadPath)
 	if err != nil {
 		return fmt.Errorf("error uploading transcription: %w", err)

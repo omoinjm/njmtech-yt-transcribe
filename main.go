@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/joho/godotenv" // Import godotenv
@@ -22,7 +23,10 @@ const (
 
 // handleFatalError logs a fatal error and exits the program.
 func handleFatalError(message string, err error) {
-	log.Fatalf("%s: %v", message, err)
+	if err != nil {
+		log.Fatalf("%s: %v", message, err)
+	}
+	log.Fatal(message)
 }
 
 func main() {
@@ -34,9 +38,23 @@ func main() {
 	}
 
 	// Define command-line flags
-	videoURL := flag.String(URL_FLAG, DEFAULT_VIDEO_URL, "Video URL to download audio from")
+	videoURL := flag.String(URL_FLAG, "", "Video URL to download audio from. Can also be provided as a positional argument.")
 	outputDir := flag.String(OUTPUT_FLAG, os.TempDir(), "Directory to save downloaded audio")
 	flag.Parse()
+
+	// If no URL is provided via flag, check for a positional argument
+	if *videoURL == "" {
+		if len(flag.Args()) > 0 {
+			*videoURL = flag.Args()[0]
+		} else {
+			*videoURL = DEFAULT_VIDEO_URL
+		}
+	}
+
+	// Validate the video URL
+	if _, err := url.ParseRequestURI(*videoURL); err != nil {
+		handleFatalError(fmt.Sprintf("Error: Invalid video URL provided: %s", *videoURL), err)
+	}
 
 	fmt.Printf("Transcribing video from URL: %s\n", *videoURL)
 	fmt.Printf("Output directory: %s\n", *outputDir)
