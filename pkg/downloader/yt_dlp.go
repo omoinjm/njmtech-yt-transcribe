@@ -24,8 +24,8 @@ var cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
 
-// YTDLPAudioDownloader is an implementation of YouTubeDownloader that uses the `yt-dlp` external tool.
-// It downloads the audio stream of a given YouTube video.
+// YTDLPAudioDownloader is an implementation of VideoDownloader that uses the `yt-dlp` external tool.
+// It downloads the audio stream of a given video.
 type YTDLPAudioDownloader struct{}
 
 // NewYTDLPAudioDownloader creates and returns a new instance of YTDLPAudioDownloader.
@@ -34,7 +34,7 @@ func NewYTDLPAudioDownloader() *YTDLPAudioDownloader {
 	return &YTDLPAudioDownloader{}
 }
 
-// DownloadAudio downloads the audio stream from the specified YouTube video URL
+// DownloadAudio downloads the audio stream from the specified video URL
 // and saves it to the given output directory.
 // It returns the full path to the downloaded audio file or an error if the download fails.
 //

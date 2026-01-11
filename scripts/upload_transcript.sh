@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-TRANSCRIPT_FILE="/tmp/njmtech-yt-transcribe/transcript.txt"
+TRANSCRIPT_FILE="/tmp/njmtech-yt-transcribe/youtube/transcript.txt"
 API_TOKEN="9kKAtYdMCgmGrMAVS818vnOkoHfDZkc9i"
 
 curl -X POST \
