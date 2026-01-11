@@ -6,6 +6,7 @@ cd "$(dirname "$SCRIPT_DIR")"
 
 echo "Building..."
 go build -a -v -o yt-transcribe
+echo ""
 
 sleep 3
 

@@ -4,15 +4,30 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"net/http"
+	"net/url"
+	"os"
 
 	"github.com/joho/godotenv" // Import godotenv
 	"yt-transcribe/pkg/downloader"
 	"yt-transcribe/pkg/transcriber"
 	"yt-transcribe/pkg/uploader"
+	"yt-transcribe/src"
 )
+
+const (
+	DEFAULT_VIDEO_URL = "https://www.youtube.com/watch?v=rdWZo5PD9Ek"
+	URL_FLAG          = "url"
+	OUTPUT_FLAG       = "output"
+)
+
+// handleFatalError logs a fatal error and exits the program.
+func handleFatalError(message string, err error) {
+	if err != nil {
+		log.Fatalf("%s: %v", message, err)
+	}
+	log.Fatal(message)
+}
 
 func main() {
 	// Load environment variables from .env file.
@@ -23,80 +38,54 @@ func main() {
 	}
 
 	// Define command-line flags
-	videoURL := flag.String("url", "https://www.youtube.com/watch?v=rdWZo5PD9Ek", "YouTube video URL to download audio from")
-	outputDir := flag.String("output", os.TempDir(), "Directory to save downloaded audio")
+	videoURL := flag.String(URL_FLAG, "", "Video URL to download audio from. Can also be provided as a positional argument.")
+	outputDir := flag.String(OUTPUT_FLAG, os.TempDir(), "Directory to save downloaded audio")
 	flag.Parse()
 
-	fmt.Printf("Transcribing YouTube video from URL: %s\n", *videoURL)
+	// If no URL is provided via flag, check for a positional argument
+	if *videoURL == "" {
+		if len(flag.Args()) > 0 {
+			*videoURL = flag.Args()[0]
+		} else {
+			*videoURL = DEFAULT_VIDEO_URL
+		}
+	}
+
+	// Validate the video URL
+	if _, err := url.ParseRequestURI(*videoURL); err != nil {
+		handleFatalError(fmt.Sprintf("Error: Invalid video URL provided: %s", *videoURL), err)
+	}
+
+	fmt.Printf("Transcribing video from URL: %s\n", *videoURL)
 	fmt.Printf("Output directory: %s\n", *outputDir)
 
 	// Ensure the output directory exists
 	if err := os.MkdirAll(*outputDir, 0755); err != nil {
-		log.Fatalf("Error creating output directory %s: %v", *outputDir, err)
+		handleFatalError(fmt.Sprintf("Error creating output directory %s", *outputDir), err)
 	}
 
 	// --- Dependency Injection setup ---
-	// Initialize the YouTube Downloader
-	ytDownloader := downloader.NewYTDLPAudioDownloader()
-
-	// Initialize the WhisperCPP Transcriber
+	videoDownloader := downloader.NewYTDLPAudioDownloader()
 	whisperModelPath := os.Getenv("WHISPER_MODEL_PATH")
 	if whisperModelPath == "" {
 		log.Println("WHISPER_MODEL_PATH environment variable not set.")
 	}
 	audioTranscriber := transcriber.NewWhisperCPPTranscriber(whisperModelPath)
-
-	// Initialize the Vercel Blob Uploader
 	vercelBlobAPIURL := os.Getenv("VERCEL_BLOB_API_URL")
 	if vercelBlobAPIURL == "" {
-		log.Fatalf("VERCEL_BLOB_API_URL environment variable not set.")
+		handleFatalError("VERCEL_BLOB_API_URL environment variable not set", nil)
 	}
 	vercelBlobAPIToken := os.Getenv("VERCEL_BLOB_API_TOKEN")
 	if vercelBlobAPIToken == "" {
-		log.Fatalf("VERCEL_BLOB_API_TOKEN environment variable not set.")
+		handleFatalError("VERCEL_BLOB_API_TOKEN environment variable not set", nil)
 	}
 	blobUploader := uploader.NewVercelBlobUploader(vercelBlobAPIURL, vercelBlobAPIToken, &http.Client{})
 
-	// --- Main application logic ---
-	// 1. Download the audio
-	fmt.Println("Downloading audio...")
-	audioFilePath, err := ytDownloader.DownloadAudio(*videoURL, *outputDir)
-	if err != nil {
-		log.Fatalf("Error downloading audio: %v", err)
+	// Initialize the transcription service
+	transcriptionService := src.NewTranscriptionService(videoDownloader, audioTranscriber, blobUploader, whisperModelPath)
+
+	// Execute the transcription service
+	if err := transcriptionService.Execute(*videoURL, *outputDir); err != nil {
+		handleFatalError("Error executing transcription service", err)
 	}
-	fmt.Printf("Audio downloaded to: %s\n", audioFilePath)
-	defer func() {
-		if err := os.Remove(audioFilePath); err != nil {
-			log.Printf("Warning: could not remove temporary audio file %s: %v", audioFilePath, err)
-		}
-		fmt.Printf("Removed temporary audio file: %s\n", audioFilePath)
-	}()
-
-	// 2. Transcribe the audio
-	fmt.Println("Transcribing audio...")
-
-	transcription, err := audioTranscriber.Transcribe(audioFilePath)
-	if err != nil {
-		log.Fatalf("Error transcribing audio: %v", err)
-	}
-
-	// 3. Save the transcription to a local file
-	transcriptFilename := "transcript.txt"
-	transcriptFilepath := filepath.Join(*outputDir, transcriptFilename)
-	err = os.WriteFile(transcriptFilepath, []byte(transcription), 0644)
-	if err != nil {
-		log.Fatalf("Error saving transcription to file: %v", err)
-	}
-	fmt.Printf("Transcription saved to: %s\n", transcriptFilepath)
-
-	// 4. Upload the transcription
-	fmt.Println("Uploading transcription...")
-	uploadResponse, err := blobUploader.Upload(transcription, transcriptFilename)
-	if err != nil {
-		log.Fatalf("Error uploading transcription: %v", err)
-	}
-
-	fmt.Println("\n--- Transcription Upload Complete ---")
-	fmt.Println("Response from Vercel Blob API:")
-	fmt.Println(uploadResponse)
 }

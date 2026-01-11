@@ -1,10 +1,10 @@
 name: Go Release note
 
 on:
-  workflow_run:
-    workflows: ["Go Build & Test"]
+  pull_request:
+    branches: ["main", "master", "production"]
     types:
-      - completed
+      - closed
 
 permissions:
   contents: write
