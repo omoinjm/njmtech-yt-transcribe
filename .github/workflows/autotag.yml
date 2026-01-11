@@ -1,6 +1,7 @@
 name: Go Release note
 on:
-  workflow_call: # Changed from workflow_run
+  push:
+    branches: ["main", "master", "production", "staging", "development"]
 
 permissions:
   contents: write
