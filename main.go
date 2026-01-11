@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/joho/godotenv" // Import godotenv
 	"yt-transcribe/pkg/downloader"
@@ -82,7 +81,6 @@ func main() {
 		log.Fatalf("Error transcribing audio: %v", err)
 	}
 
-	// 3. Save the transcription to a local file
 	// 3. Save the transcription to a local file and prepare for upload
 	platform := "other"
 	if strings.Contains(*videoURL, "youtube.com") {
@@ -91,14 +89,12 @@ func main() {
 		platform = "instagram"
 	}
 
-	dateTimeNow := time.Now().Format("2006-01-02_15:04:05") // More standard format for filename
-
 	var transcriptPath string
 	if platform == "instagram" {
-		transcriptPath = filepath.Join("njmtech", platform, dateTimeNow, "transript")
+		transcriptPath = filepath.Join("/tmp/njmtech-yt-transcribe", platform, "transript.txt")
 	} else {
 		// all other platforms will be saved under the youtube directory
-		transcriptPath = filepath.Join("njmtech", "youtube", dateTimeNow, "transcript")
+		transcriptPath = filepath.Join("/tmp/njmtech-yt-transcribe", "youtube", "transcript.txt")
 	}
 
 	// Create local directory for the transcript file
