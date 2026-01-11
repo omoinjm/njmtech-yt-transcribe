@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 )
 
 // HTTPClient interface for mocking purposes
@@ -48,7 +49,11 @@ func (v *VercelBlobUploader) Upload(content string, filename string) (string, er
 
 	writer.Close()
 
-	req, err := http.NewRequest("POST", v.apiURL, body)
+	// URL-encode the filename to safely include it in the query string
+	encodedFilename := url.QueryEscape(filename)
+	uploadURL := fmt.Sprintf("%s?blob_path=%s", v.apiURL, encodedFilename)
+
+	req, err := http.NewRequest("POST", uploadURL, body)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
