@@ -1,7 +1,9 @@
 name: Go Release note
 on:
-  push:
-    branches: ["main", "master", "production", "staging", "development"]
+  pull_request:
+    branches: ["main", "master", "production"]
+    types:
+      - closed
 
 permissions:
   contents: write

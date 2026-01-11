@@ -2,7 +2,7 @@ name: Go Build & Test
 
 on:
   push:
-    branches: ["main", "master", "production", "staging", "development"]
+    branches: ["staging", "development"]
 
 jobs:
   build-and-test:

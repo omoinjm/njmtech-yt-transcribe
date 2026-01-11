@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 )
 
 // A mutex to protect global variables during concurrent tests
