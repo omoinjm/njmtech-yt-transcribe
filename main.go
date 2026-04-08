@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -47,6 +48,7 @@ func main() {
 		if len(flag.Args()) > 0 {
 			*videoURL = flag.Args()[0]
 		} else {
+			log.Printf("No URL provided. Using default URL: %s", DEFAULT_VIDEO_URL)
 			*videoURL = DEFAULT_VIDEO_URL
 		}
 	}
@@ -66,11 +68,13 @@ func main() {
 
 	// --- Dependency Injection setup ---
 	videoDownloader := downloader.NewYTDLPAudioDownloader()
+
 	whisperModelPath := os.Getenv("WHISPER_MODEL_PATH")
 	if whisperModelPath == "" {
-		log.Println("WHISPER_MODEL_PATH environment variable not set.")
+		handleFatalError("WHISPER_MODEL_PATH environment variable not set", nil)
 	}
 	audioTranscriber := transcriber.NewWhisperCPPTranscriber(whisperModelPath)
+
 	vercelBlobAPIURL := os.Getenv("VERCEL_BLOB_API_URL")
 	if vercelBlobAPIURL == "" {
 		handleFatalError("VERCEL_BLOB_API_URL environment variable not set", nil)
@@ -82,10 +86,10 @@ func main() {
 	blobUploader := uploader.NewVercelBlobUploader(vercelBlobAPIURL, vercelBlobAPIToken, &http.Client{})
 
 	// Initialize the transcription service
-	transcriptionService := src.NewTranscriptionService(videoDownloader, audioTranscriber, blobUploader, whisperModelPath)
+	transcriptionService := src.NewTranscriptionService(videoDownloader, audioTranscriber, blobUploader)
 
-	// Execute the transcription service
-	if err := transcriptionService.Execute(*videoURL, *outputDir); err != nil {
+	ctx := context.Background()
+	if err := transcriptionService.Execute(ctx, *videoURL, *outputDir); err != nil {
 		handleFatalError("Error executing transcription service", err)
 	}
 }

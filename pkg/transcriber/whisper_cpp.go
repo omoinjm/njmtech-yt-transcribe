@@ -1,8 +1,8 @@
 package transcriber
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,7 +10,7 @@ import (
 
 var (
 	execLookPath = exec.LookPath
-	execCommand  = exec.Command
+	execCommand  = exec.CommandContext
 )
 
 // WhisperCPPTranscriber implements the Transcriber interface using whisper.cpp.
@@ -26,7 +26,7 @@ func NewWhisperCPPTranscriber(modelPath string) *WhisperCPPTranscriber {
 }
 
 // Transcribe transcribes the given audio file using whisper.cpp.
-func (t *WhisperCPPTranscriber) Transcribe(audioFilePath string) (string, error) {
+func (t *WhisperCPPTranscriber) Transcribe(ctx context.Context, audioFilePath string) (string, error) {
 	// Check if whisper-cli is available
 	if _, err := execLookPath("whisper-cli"); err != nil {
 		return "", fmt.Errorf("whisper-cli not found in PATH: %w", err)
@@ -40,18 +40,18 @@ func (t *WhisperCPPTranscriber) Transcribe(audioFilePath string) (string, error)
 	defer os.RemoveAll(tmpDir) // Clean up the temporary directory
 
 	outputPrefix := filepath.Join(tmpDir, "transcript")
-	outputFilePath := outputPrefix + ".txt" // whisper-cli adds .txt extension
+	outputFilePath := outputPrefix + ".srt" // whisper-cli adds .srt extension
 
 	// Construct the command
 	cmdArgs := []string{
 		"-m", t.ModelPath,
 		"-f", audioFilePath,
-		"--output-txt",
+		"--output-srt",
 		"--output-file", outputPrefix,
 		"--no-prints",
 	}
 
-	cmd := execCommand("whisper-cli", cmdArgs...)
+	cmd := execCommand(ctx, "whisper-cli", cmdArgs...)
 
 	// Execute the command
 	output, err := cmd.CombinedOutput()
@@ -60,7 +60,7 @@ func (t *WhisperCPPTranscriber) Transcribe(audioFilePath string) (string, error)
 	}
 
 	// Read the transcribed text from the output file
-	transcriptBytes, err := ioutil.ReadFile(outputFilePath)
+	transcriptBytes, err := os.ReadFile(outputFilePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read transcript file %s: %w", outputFilePath, err)
 	}

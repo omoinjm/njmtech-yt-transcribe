@@ -3,6 +3,8 @@ name: Go Build & Test
 on:
   push:
     branches: ["main", "master", "production", "staging", "development"]
+  pull_request:
+    branches: ["main", "master", "production"]
 
 jobs:
   build-and-test:

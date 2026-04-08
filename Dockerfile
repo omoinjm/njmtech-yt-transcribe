@@ -23,18 +23,18 @@ COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /yt-transcribe .
 
 # Stage 2: Create the final, minimal image
-FROM alpine:latest
+FROM alpine:3.21
 
 # Install runtime dependencies: ffmpeg, curl, cmake, build-base.
 # cmake and build-base are needed for building whisper.cpp.
 RUN apk add --no-cache ffmpeg curl cmake build-base git
 
-# Install yt-dlp from the latest release on GitHub.
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+# Install yt-dlp from a pinned release for reproducible builds.
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/download/2025.10.22/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp
 
-# Install and build whisper.cpp, and download the base.en model.
-RUN git clone https://github.com/ggerganov/whisper.cpp.git /whisper.cpp && \
+# Install and build whisper.cpp from a pinned release tag.
+RUN git clone --depth 1 --branch v1.8.4 https://github.com/ggml-org/whisper.cpp.git /whisper.cpp && \
     cd /whisper.cpp && \
     sh ./models/download-ggml-model.sh base.en && \
     cmake -B build -DCMAKE_BUILD_TYPE=Release && \

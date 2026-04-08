@@ -2,6 +2,7 @@ package uploader
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -34,7 +35,7 @@ func NewVercelBlobUploader(apiURL, apiToken string, client HTTPClient) *VercelBl
 }
 
 // Upload uploads the given content to Vercel Blob storage.
-func (v *VercelBlobUploader) Upload(content string, filename string) (string, error) {
+func (v *VercelBlobUploader) Upload(ctx context.Context, content string, filename string) (string, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -53,7 +54,7 @@ func (v *VercelBlobUploader) Upload(content string, filename string) (string, er
 	encodedFilename := url.QueryEscape(filename)
 	uploadURL := fmt.Sprintf("%s?blob_path=%s", v.apiURL, encodedFilename)
 
-	req, err := http.NewRequest("POST", uploadURL, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, body)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}

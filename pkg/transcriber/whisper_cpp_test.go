@@ -1,24 +1,13 @@
 package transcriber
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 	"testing"
 )
-
-// A mutex to protect global variables during concurrent tests
-var testMux sync.Mutex
-
-// Helper function to restore original globals after each test
-func restoreGlobals(oldLookPath func(string) (string, error), oldCommand func(string, ...string) *exec.Cmd) {
-	testMux.Lock()
-	defer testMux.Unlock()
-	execLookPath = oldLookPath
-	execCommand = oldCommand
-}
 
 // TestNewWhisperCPPTranscriber ensures the constructor works correctly.
 func TestNewWhisperCPPTranscriber(t *testing.T) {
@@ -33,20 +22,22 @@ func TestNewWhisperCPPTranscriber(t *testing.T) {
 }
 
 func TestTranscribe_WhisperCLINotFound(t *testing.T) {
-	testMux.Lock()
 	oldLookPath := execLookPath
 	oldCommand := execCommand
+	t.Cleanup(func() {
+		execLookPath = oldLookPath
+		execCommand = oldCommand
+	})
+
 	execLookPath = func(file string) (string, error) {
 		if file == "whisper-cli" {
 			return "", errors.New("not found")
 		}
 		return oldLookPath(file)
 	}
-	testMux.Unlock()
-	defer restoreGlobals(oldLookPath, oldCommand)
 
 	transcriber := NewWhisperCPPTranscriber("/path/to/model")
-	_, err := transcriber.Transcribe("/path/to/audio.wav")
+	_, err := transcriber.Transcribe(context.Background(), "/path/to/audio.wav")
 
 	if err == nil {
 		t.Fatal("expected an error but got nil")
@@ -57,24 +48,26 @@ func TestTranscribe_WhisperCLINotFound(t *testing.T) {
 }
 
 func TestTranscribe_Success(t *testing.T) {
-	testMux.Lock()
 	oldLookPath := execLookPath
 	oldCommand := execCommand
+	t.Cleanup(func() {
+		execLookPath = oldLookPath
+		execCommand = oldCommand
+	})
+
 	execLookPath = func(file string) (string, error) {
 		return "/path/to/" + file, nil
 	}
-	execCommand = func(name string, args ...string) *exec.Cmd {
+	execCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		cs := []string{"-test.run=TestHelperProcess", "--"}
 		cs = append(cs, args...)
-		cmd := oldCommand(os.Args[0], cs...)
+		cmd := oldCommand(ctx, os.Args[0], cs...)
 		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
 		return cmd
 	}
-	testMux.Unlock()
-	defer restoreGlobals(oldLookPath, oldCommand)
 
 	transcriber := NewWhisperCPPTranscriber("/path/to/model")
-	transcript, err := transcriber.Transcribe("/path/to/audio.wav")
+	transcript, err := transcriber.Transcribe(context.Background(), "/path/to/audio.wav")
 
 	if err != nil {
 		t.Fatalf("expected no error, but got: %v", err)
@@ -91,7 +84,7 @@ func TestHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
 	}
-	
+
 	args := os.Args
 	for i, arg := range args {
 		if arg == "--" {
@@ -111,8 +104,8 @@ func TestHelperProcess(t *testing.T) {
 	if outputFile == "" {
 		os.Exit(1)
 	}
-	
-	file, err := os.Create(outputFile + ".txt")
+
+	file, err := os.Create(outputFile + ".srt")
 	if err != nil {
 		os.Exit(1)
 	}
@@ -122,22 +115,24 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestTranscribe_CommandFailed(t *testing.T) {
-	testMux.Lock()
 	oldLookPath := execLookPath
 	oldCommand := execCommand
+	t.Cleanup(func() {
+		execLookPath = oldLookPath
+		execCommand = oldCommand
+	})
+
 	execLookPath = func(file string) (string, error) {
 		return "/path/to/" + file, nil
 	}
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		cmd := oldCommand(os.Args[0], "-test.run=TestHelperProcessFailed")
+	execCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		cmd := oldCommand(ctx, os.Args[0], "-test.run=TestHelperProcessFailed")
 		cmd.Env = []string{"GO_WANT_HELPER_PROCESS_FAILED=1"}
 		return cmd
 	}
-	testMux.Unlock()
-	defer restoreGlobals(oldLookPath, oldCommand)
 
 	transcriber := NewWhisperCPPTranscriber("/path/to/model")
-	_, err := transcriber.Transcribe("/path/to/audio.wav")
+	_, err := transcriber.Transcribe(context.Background(), "/path/to/audio.wav")
 
 	if err == nil {
 		t.Fatal("expected an error but got nil")
