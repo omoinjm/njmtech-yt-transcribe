@@ -41,12 +41,13 @@ func NewTranscriptionService(downloader VideoDownloader, transcriber Transcriber
 }
 
 // Execute orchestrates the download, transcription, and upload processes.
-func (s *TranscriptionServiceImpl) Execute(ctx context.Context, videoURL, outputDir string) error {
+// It returns the Vercel Blob URL of the uploaded transcript.
+func (s *TranscriptionServiceImpl) Execute(ctx context.Context, videoURL, outputDir string) (string, error) {
 	// 1. Download the audio
 	fmt.Println("Downloading audio...")
 	audioFilePath, videoID, err := s.Downloader.DownloadAudio(ctx, videoURL, outputDir)
 	if err != nil {
-		return fmt.Errorf("error downloading audio: %w", err)
+		return "", fmt.Errorf("error downloading audio: %w", err)
 	}
 	fmt.Printf("Audio downloaded to: %s\n", audioFilePath)
 	defer func() {
@@ -60,7 +61,7 @@ func (s *TranscriptionServiceImpl) Execute(ctx context.Context, videoURL, output
 	fmt.Println("Transcribing audio...")
 	transcription, err := s.Transcriber.Transcribe(ctx, audioFilePath)
 	if err != nil {
-		return fmt.Errorf("error transcribing audio: %w", err)
+		return "", fmt.Errorf("error transcribing audio: %w", err)
 	}
 
 	// 3. Determine platform for upload path
@@ -76,7 +77,7 @@ func (s *TranscriptionServiceImpl) Execute(ctx context.Context, videoURL, output
 	uploadPath := fmt.Sprintf("%s/%s/%s", APP_NAME, platform, videoID)
 	rawResponse, err := s.Uploader.Upload(ctx, transcription, uploadPath)
 	if err != nil {
-		return fmt.Errorf("error uploading transcription: %w", err)
+		return "", fmt.Errorf("error uploading transcription: %w", err)
 	}
 
 	fmt.Println("\n--- Transcription Upload Complete ---")
@@ -84,9 +85,9 @@ func (s *TranscriptionServiceImpl) Execute(ctx context.Context, videoURL, output
 	if jsonErr := json.Unmarshal([]byte(rawResponse), &blobResp); jsonErr == nil {
 		fmt.Printf("Blob URL:  %s\n", blobResp.URL)
 		fmt.Printf("Pathname:  %s\n", blobResp.Pathname)
-	} else {
-		fmt.Println(rawResponse)
+		return blobResp.URL, nil
 	}
 
-	return nil
+	fmt.Println(rawResponse)
+	return rawResponse, nil
 }

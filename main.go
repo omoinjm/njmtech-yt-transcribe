@@ -9,8 +9,9 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/joho/godotenv" // Import godotenv
+	"github.com/joho/godotenv"
 	"yt-transcribe/pkg/downloader"
+	"yt-transcribe/pkg/repository"
 	"yt-transcribe/pkg/transcriber"
 	"yt-transcribe/pkg/uploader"
 	"yt-transcribe/src"
@@ -20,6 +21,7 @@ const (
 	DEFAULT_VIDEO_URL = "https://www.youtube.com/watch?v=rdWZo5PD9Ek"
 	URL_FLAG          = "url"
 	OUTPUT_FLAG       = "output"
+	DB_FLAG           = "db"
 )
 
 // handleFatalError logs a fatal error and exits the program.
@@ -31,8 +33,6 @@ func handleFatalError(message string, err error) {
 }
 
 func main() {
-	// Load environment variables from .env file.
-	// This should be done as early as possible.
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Note: No .env file found or error loading .env file. Proceeding without .env variables.")
@@ -41,39 +41,14 @@ func main() {
 	// Define command-line flags
 	videoURL := flag.String(URL_FLAG, "", "Video URL to download audio from. Can also be provided as a positional argument.")
 	outputDir := flag.String(OUTPUT_FLAG, os.TempDir(), "Directory to save downloaded audio")
+	useDB := flag.Bool(DB_FLAG, false, "Fetch the next unprocessed video URL from the database instead of using -url")
 	flag.Parse()
 
-	// If no URL is provided via flag, check for a positional argument
-	if *videoURL == "" {
-		if len(flag.Args()) > 0 {
-			*videoURL = flag.Args()[0]
-		} else {
-			log.Printf("No URL provided. Using default URL: %s", DEFAULT_VIDEO_URL)
-			*videoURL = DEFAULT_VIDEO_URL
-		}
-	}
-
-	// Validate the video URL
-	if _, err := url.ParseRequestURI(*videoURL); err != nil {
-		handleFatalError(fmt.Sprintf("Error: Invalid video URL provided: %s", *videoURL), err)
-	}
-
-	fmt.Printf("Transcribing video from URL: %s\n", *videoURL)
-	fmt.Printf("Output directory: %s\n", *outputDir)
-
-	// Ensure the output directory exists
-	if err := os.MkdirAll(*outputDir, 0755); err != nil {
-		handleFatalError(fmt.Sprintf("Error creating output directory %s", *outputDir), err)
-	}
-
-	// --- Dependency Injection setup ---
-	videoDownloader := downloader.NewYTDLPAudioDownloader()
-
+	// --- Shared dependency setup ---
 	whisperModelPath := os.Getenv("WHISPER_MODEL_PATH")
 	if whisperModelPath == "" {
 		handleFatalError("WHISPER_MODEL_PATH environment variable not set", nil)
 	}
-	audioTranscriber := transcriber.NewWhisperCPPTranscriber(whisperModelPath)
 
 	vercelBlobAPIURL := os.Getenv("VERCEL_BLOB_API_URL")
 	if vercelBlobAPIURL == "" {
@@ -83,13 +58,83 @@ func main() {
 	if vercelBlobAPIToken == "" {
 		handleFatalError("VERCEL_BLOB_API_TOKEN environment variable not set", nil)
 	}
-	blobUploader := uploader.NewVercelBlobUploader(vercelBlobAPIURL, vercelBlobAPIToken, &http.Client{})
 
-	// Initialize the transcription service
+	videoDownloader := downloader.NewYTDLPAudioDownloader()
+	audioTranscriber := transcriber.NewWhisperCPPTranscriber(whisperModelPath)
+	blobUploader := uploader.NewVercelBlobUploader(vercelBlobAPIURL, vercelBlobAPIToken, &http.Client{})
 	transcriptionService := src.NewTranscriptionService(videoDownloader, audioTranscriber, blobUploader)
 
 	ctx := context.Background()
-	if err := transcriptionService.Execute(ctx, *videoURL, *outputDir); err != nil {
+
+	// Ensure the output directory exists
+	if err := os.MkdirAll(*outputDir, 0755); err != nil {
+		handleFatalError(fmt.Sprintf("Error creating output directory %s", *outputDir), err)
+	}
+
+	if *useDB {
+		runFromDB(ctx, transcriptionService, *outputDir)
+	} else {
+		runFromCLI(ctx, transcriptionService, *videoURL, *outputDir)
+	}
+}
+
+// runFromCLI processes a single URL provided via flags or positional args.
+func runFromCLI(ctx context.Context, svc src.TranscriptionService, videoURL, outputDir string) {
+	if videoURL == "" {
+		if len(flag.Args()) > 0 {
+			videoURL = flag.Args()[0]
+		} else {
+			log.Printf("No URL provided. Using default URL: %s", DEFAULT_VIDEO_URL)
+			videoURL = DEFAULT_VIDEO_URL
+		}
+	}
+
+	if _, err := url.ParseRequestURI(videoURL); err != nil {
+		handleFatalError(fmt.Sprintf("Error: Invalid video URL provided: %s", videoURL), err)
+	}
+
+	fmt.Printf("Transcribing video from URL: %s\n", videoURL)
+	fmt.Printf("Output directory: %s\n", outputDir)
+
+	if _, err := svc.Execute(ctx, videoURL, outputDir); err != nil {
 		handleFatalError("Error executing transcription service", err)
 	}
+}
+
+// runFromDB fetches the next unprocessed media_items row, transcribes it,
+// and writes the resulting Vercel Blob URL back to transcript_url.
+func runFromDB(ctx context.Context, svc src.TranscriptionService, outputDir string) {
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		handleFatalError("POSTGRES_URL environment variable not set (required for -db mode)", nil)
+	}
+
+	repo, err := repository.NewPostgresMediaItemRepository(ctx, postgresURL)
+	if err != nil {
+		handleFatalError("Failed to connect to database", err)
+	}
+	defer repo.Close(ctx)
+
+	item, err := repo.FetchNextUnprocessed(ctx)
+	if err != nil {
+		handleFatalError("Failed to fetch next unprocessed item", err)
+	}
+	if item == nil {
+		fmt.Println("No unprocessed items found in the database. Nothing to do.")
+		return
+	}
+
+	fmt.Printf("Fetched item from DB — id: %s  platform: %s  url: %s\n", item.ID, item.Platform, item.URL)
+	fmt.Printf("Output directory: %s\n", outputDir)
+
+	blobURL, err := svc.Execute(ctx, item.URL, outputDir)
+	if err != nil {
+		handleFatalError("Error executing transcription service", err)
+	}
+
+	if err := repo.UpdateTranscriptURL(ctx, item.ID, blobURL); err != nil {
+		handleFatalError("Transcription succeeded but failed to update transcript_url in database", err)
+	}
+
+	fmt.Printf("transcript_url updated in database for id %s\n", item.ID)
 }
