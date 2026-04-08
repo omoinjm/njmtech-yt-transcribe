@@ -8,9 +8,11 @@ import (
 
 // mockRepo is a test double for MediaItemRepository.
 type mockRepo struct {
-	fetchResult *MediaItem
-	fetchErr    error
-	updateErr   error
+	fetchResult  *MediaItem
+	fetchErr     error
+	fetchAllResult []MediaItem
+	fetchAllErr    error
+	updateErr    error
 
 	lastUpdateID  string
 	lastUpdateURL string
@@ -18,6 +20,10 @@ type mockRepo struct {
 
 func (m *mockRepo) FetchNextUnprocessed(_ context.Context) (*MediaItem, error) {
 	return m.fetchResult, m.fetchErr
+}
+
+func (m *mockRepo) FetchAll(_ context.Context) ([]MediaItem, error) {
+	return m.fetchAllResult, m.fetchAllErr
 }
 
 func (m *mockRepo) UpdateTranscriptURL(_ context.Context, id, transcriptURL string) error {
@@ -105,6 +111,55 @@ func TestUpdateTranscriptURL_PropagatesError(t *testing.T) {
 	repo := &mockRepo{updateErr: expectedErr}
 
 	err := repo.UpdateTranscriptURL(context.Background(), "id", "url")
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	if !errors.Is(err, expectedErr) {
+		t.Errorf("want %v, got %v", expectedErr, err)
+	}
+}
+
+func TestFetchAll_ReturnsAllItems(t *testing.T) {
+	expected := []MediaItem{
+		{ID: "1", URL: "https://youtube.com/watch?v=aaa", Platform: "youtube", VideoID: "aaa"},
+		{ID: "2", URL: "https://youtube.com/watch?v=bbb", Platform: "youtube", VideoID: "bbb"},
+	}
+	repo := &mockRepo{fetchAllResult: expected}
+
+	items, err := repo.FetchAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(items) != len(expected) {
+		t.Fatalf("want %d items, got %d", len(expected), len(items))
+	}
+	for i, item := range items {
+		if item.ID != expected[i].ID {
+			t.Errorf("item[%d].ID: want %q, got %q", i, expected[i].ID, item.ID)
+		}
+		if item.URL != expected[i].URL {
+			t.Errorf("item[%d].URL: want %q, got %q", i, expected[i].URL, item.URL)
+		}
+	}
+}
+
+func TestFetchAll_ReturnsEmptySliceWhenNoRows(t *testing.T) {
+	repo := &mockRepo{fetchAllResult: nil}
+
+	items, err := repo.FetchAll(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(items) != 0 {
+		t.Errorf("expected empty slice, got %d items", len(items))
+	}
+}
+
+func TestFetchAll_PropagatesError(t *testing.T) {
+	expectedErr := errors.New("db connection lost")
+	repo := &mockRepo{fetchAllErr: expectedErr}
+
+	_, err := repo.FetchAll(context.Background())
 	if err == nil {
 		t.Fatal("expected an error, got nil")
 	}

@@ -22,6 +22,7 @@ const (
 	URL_FLAG          = "url"
 	OUTPUT_FLAG       = "output"
 	DB_FLAG           = "db"
+	REPROCESS_ALL_FLAG = "reprocess-all"
 )
 
 // handleFatalError logs a fatal error and exits the program.
@@ -41,7 +42,8 @@ func main() {
 	// Define command-line flags
 	videoURL := flag.String(URL_FLAG, "", "Video URL to download audio from. Can also be provided as a positional argument.")
 	outputDir := flag.String(OUTPUT_FLAG, os.TempDir(), "Directory to save downloaded audio")
-	useDB := flag.Bool(DB_FLAG, false, "Fetch the next unprocessed video URL from the database instead of using -url")
+	useDB        := flag.Bool(DB_FLAG, false, "Fetch the next unprocessed video URL from the database instead of using -url")
+	reprocessAll := flag.Bool(REPROCESS_ALL_FLAG, false, "Re-transcribe every record in the database, overwriting existing transcript URLs")
 	flag.Parse()
 
 	// --- Shared dependency setup ---
@@ -71,7 +73,9 @@ func main() {
 		handleFatalError(fmt.Sprintf("Error creating output directory %s", *outputDir), err)
 	}
 
-	if *useDB {
+	if *reprocessAll {
+		runReprocessAll(ctx, transcriptionService, *outputDir)
+	} else if *useDB {
 		runFromDB(ctx, transcriptionService, *outputDir)
 	} else {
 		runFromCLI(ctx, transcriptionService, *videoURL, *outputDir)
@@ -137,4 +141,56 @@ func runFromDB(ctx context.Context, svc src.TranscriptionService, outputDir stri
 	}
 
 	fmt.Printf("transcript_url updated in database for id %s\n", item.ID)
+}
+
+// runReprocessAll fetches every record in media_items and re-transcribes each one,
+// overwriting the existing transcript_url. Failures on individual items are logged
+// and skipped so the rest of the batch can continue.
+func runReprocessAll(ctx context.Context, svc src.TranscriptionService, outputDir string) {
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		handleFatalError("POSTGRES_URL environment variable not set (required for -reprocess-all mode)", nil)
+	}
+
+	repo, err := repository.NewPostgresMediaItemRepository(ctx, postgresURL)
+	if err != nil {
+		handleFatalError("Failed to connect to database", err)
+	}
+	defer repo.Close(ctx)
+
+	items, err := repo.FetchAll(ctx)
+	if err != nil {
+		handleFatalError("Failed to fetch all items from database", err)
+	}
+	if len(items) == 0 {
+		fmt.Println("No records found in the database. Nothing to do.")
+		return
+	}
+
+	total := len(items)
+	succeeded, failed := 0, 0
+
+	fmt.Printf("Reprocessing %d record(s)...\n\n", total)
+
+	for i, item := range items {
+		fmt.Printf("[%d/%d] id: %s  platform: %s  url: %s\n", i+1, total, item.ID, item.Platform, item.URL)
+
+		blobURL, err := svc.Execute(ctx, item.URL, outputDir)
+		if err != nil {
+			log.Printf("  ✗ transcription failed: %v — skipping\n", err)
+			failed++
+			continue
+		}
+
+		if err := repo.UpdateTranscriptURL(ctx, item.ID, blobURL); err != nil {
+			log.Printf("  ✗ db update failed: %v — skipping\n", err)
+			failed++
+			continue
+		}
+
+		fmt.Printf("  ✓ transcript_url updated\n")
+		succeeded++
+	}
+
+	fmt.Printf("\nDone. %d succeeded, %d failed out of %d total.\n", succeeded, failed, total)
 }

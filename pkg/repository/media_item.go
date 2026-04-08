@@ -17,6 +17,10 @@ type MediaItemRepository interface {
 	// Returns nil, nil when there are no unprocessed items.
 	FetchNextUnprocessed(ctx context.Context) (*MediaItem, error)
 
+	// FetchAll returns every row in media_items ordered by created_at ASC.
+	// Used by the reprocess-all mode to regenerate transcripts for existing records.
+	FetchAll(ctx context.Context) ([]MediaItem, error)
+
 	// UpdateTranscriptURL writes the Vercel Blob URL back to transcript_url for the given row id.
 	UpdateTranscriptURL(ctx context.Context, id, transcriptURL string) error
 }

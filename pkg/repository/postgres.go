@@ -52,6 +52,33 @@ func (r *PostgresMediaItemRepository) FetchNextUnprocessed(ctx context.Context) 
 	return &item, nil
 }
 
+// FetchAll returns every row in media_items ordered by created_at ASC.
+func (r *PostgresMediaItemRepository) FetchAll(ctx context.Context) ([]MediaItem, error) {
+	const query = `
+		SELECT id, url, platform, video_id
+		FROM   media_items
+		ORDER  BY created_at ASC`
+
+	rows, err := r.conn.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch all items: %w", err)
+	}
+	defer rows.Close()
+
+	var items []MediaItem
+	for rows.Next() {
+		var item MediaItem
+		if err := rows.Scan(&item.ID, &item.URL, &item.Platform, &item.VideoID); err != nil {
+			return nil, fmt.Errorf("failed to scan media item row: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating media item rows: %w", err)
+	}
+	return items, nil
+}
+
 // UpdateTranscriptURL sets transcript_url for the row identified by id.
 func (r *PostgresMediaItemRepository) UpdateTranscriptURL(ctx context.Context, id, transcriptURL string) error {
 	const query = `UPDATE media_items SET transcript_url = $1 WHERE id = $2`
