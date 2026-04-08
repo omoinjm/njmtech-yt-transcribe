@@ -53,7 +53,7 @@ func (v *VercelBlobUploader) Upload(ctx context.Context, content string, filenam
 	// URL-encode the filename to safely include it in the query string.
 	// allowOverwrite=true is required when reprocessing existing blobs.
 	encodedFilename := url.QueryEscape(filename)
-	uploadURL := fmt.Sprintf("%s?blob_path=%s&allowOverwrite=true", v.apiURL, encodedFilename)
+	uploadURL := fmt.Sprintf("%s?blob_path=%s&allow_overwrite=true", v.apiURL, encodedFilename)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, body)
 	if err != nil {
