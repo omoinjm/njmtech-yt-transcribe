@@ -1,6 +1,7 @@
 package uploader
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -70,7 +71,7 @@ func TestUpload_Success(t *testing.T) {
 	uploader := NewVercelBlobUploader(testServer.URL, "test-token", nil)
 	content := "test content"
 
-	response, err := uploader.Upload(content, filename)
+	response, err := uploader.Upload(context.Background(), content, filename)
 
 	if err != nil {
 		t.Fatalf("Upload failed unexpectedly: %v", err)
@@ -94,7 +95,7 @@ func TestUpload_APIError(t *testing.T) {
 	content := "test content"
 	filename := "test.txt"
 
-	_, err := uploader.Upload(content, filename)
+	_, err := uploader.Upload(context.Background(), content, filename)
 
 	if err == nil {
 		t.Fatal("Expected an error, but got nil")
@@ -113,7 +114,7 @@ func TestUpload_NetworkError(t *testing.T) {
 	content := "test content"
 	filename := "test.txt"
 
-	_, err := uploader.Upload(content, filename)
+	_, err := uploader.Upload(context.Background(), content, filename)
 
 	if err == nil {
 		t.Fatal("Expected a network error, but got nil")
@@ -132,7 +133,7 @@ func TestUpload_InvalidURL(t *testing.T) {
 	content := "test content"
 	filename := "test.txt"
 
-	_, err := uploader.Upload(content, filename)
+	_, err := uploader.Upload(context.Background(), content, filename)
 
 	if err == nil {
 		t.Fatal("Expected an error for invalid URL, got nil")
@@ -164,7 +165,7 @@ func TestUpload_ReadResponseBodyError(t *testing.T) {
 	content := "test content"
 	filename := "test.txt"
 
-	_, err := uploader.Upload(content, filename)
+	_, err := uploader.Upload(context.Background(), content, filename)
 
 	if err == nil {
 		t.Fatal("Expected an error reading response body, but got nil")
@@ -197,7 +198,7 @@ func TestUpload_CustomHTTPClient(t *testing.T) {
 	uploader := NewVercelBlobUploader("https://example.com/api", "test-token", mockClient)
 	content := "test content"
 
-	response, err := uploader.Upload(content, filename)
+	response, err := uploader.Upload(context.Background(), content, filename)
 
 	if err != nil {
 		t.Fatalf("Upload failed unexpectedly: %v", err)

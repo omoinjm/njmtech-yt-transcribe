@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,10 +9,10 @@ import (
 	"strings"
 )
 
-// execCommandFunc is a type that allows us to mock os/exec.Command in tests.
-type execCommandFunc func(name string, arg ...string) *exec.Cmd
+// execCommandFunc is a type that allows us to mock exec.CommandContext in tests.
+type execCommandFunc func(ctx context.Context, name string, arg ...string) *exec.Cmd
 
-var commandExecutor execCommandFunc = exec.Command
+var commandExecutor execCommandFunc = exec.CommandContext
 
 // osLookPath is a variable that can be overridden for testing purposes.
 var osLookPath = exec.LookPath
@@ -43,7 +44,7 @@ func NewYTDLPAudioDownloader() *YTDLPAudioDownloader {
 //
 // Example yt-dlp command:
 // yt-dlp -x --audio-format wav --output "/path/to/output/videoID.wav" <video-url>
-func (d *YTDLPAudioDownloader) DownloadAudio(videoURL string, outputDir string) (string, string, error) {
+func (d *YTDLPAudioDownloader) DownloadAudio(ctx context.Context, videoURL string, outputDir string) (string, string, error) {
 	// Check if ffmpeg is installed
 	if _, err := osLookPath("ffmpeg"); err != nil {
 		return "", "", fmt.Errorf("ffmpeg not found in PATH. ffmpeg is required by yt-dlp to process audio. Please install it to use this feature: %w", err)
@@ -55,12 +56,12 @@ func (d *YTDLPAudioDownloader) DownloadAudio(videoURL string, outputDir string) 
 	}
 
 	// Get video ID
-	idCmd := commandExecutor("yt-dlp", "--get-id", videoURL)
+	idCmd := commandExecutor(ctx, "yt-dlp", "--get-id", videoURL)
 	idOutput, err := cmdCombinedOutput(idCmd)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get video ID: %v\nOutput: %s", err, string(idOutput))
 	}
-	
+
 	lines := strings.Split(string(idOutput), "\n")
 	var videoID string
 	for i := len(lines) - 1; i >= 0; i-- {
@@ -75,12 +76,12 @@ func (d *YTDLPAudioDownloader) DownloadAudio(videoURL string, outputDir string) 
 		return "", "", fmt.Errorf("could not extract video ID from yt-dlp output: %s", string(idOutput))
 	}
 
-
 	// Generate filename based on video ID
 	outputFilename := fmt.Sprintf("%s.wav", videoID)
 	downloadedFilePath := filepath.Join(outputDir, outputFilename)
 
 	cmd := commandExecutor(
+		ctx,
 		"yt-dlp",
 		"-x",                    // Extract audio
 		"--audio-format", "wav", // Convert audio to wav format
@@ -93,9 +94,6 @@ func (d *YTDLPAudioDownloader) DownloadAudio(videoURL string, outputDir string) 
 
 	output, err := cmdCombinedOutput(cmd)
 	if err != nil {
-		// If download fails, we still have the output which might contain warnings or other info
-		// The video ID part might have already been printed.
-		// We will not treat this as a fatal error for the whole process if the file exists.
 		if _, statErr := osStat(downloadedFilePath); os.IsNotExist(statErr) {
 			return "", "", fmt.Errorf("yt-dlp command failed: %v\nOutput: %s", err, string(output))
 		}

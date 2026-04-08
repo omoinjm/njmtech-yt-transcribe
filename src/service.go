@@ -1,6 +1,8 @@
 package src
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -12,32 +14,37 @@ const (
 	PLATFORM_OTHER     = "other"
 	PLATFORM_YOUTUBE   = "youtube"
 	PLATFORM_INSTAGRAM = "instagram"
-	TRANSCRIPT_DIR     = "/tmp/njmtech-yt-transcribe"
 )
+
+// vercelBlobResponse represents the JSON response from the Vercel Blob API.
+type vercelBlobResponse struct {
+	URL                string `json:"url"`
+	Pathname           string `json:"pathname"`
+	ContentType        string `json:"contentType"`
+	ContentDisposition string `json:"contentDisposition"`
+}
 
 // TranscriptionServiceImpl is the implementation of the TranscriptionService interface.
 type TranscriptionServiceImpl struct {
-	Downloader       VideoDownloader
-	Transcriber      Transcriber
-	Uploader         Uploader
-	WhisperModelPath string
+	Downloader  VideoDownloader
+	Transcriber Transcriber
+	Uploader    Uploader
 }
 
 // NewTranscriptionService creates a new TranscriptionServiceImpl.
-func NewTranscriptionService(downloader VideoDownloader, transcriber Transcriber, uploader Uploader, whisperModelPath string) TranscriptionService {
+func NewTranscriptionService(downloader VideoDownloader, transcriber Transcriber, uploader Uploader) TranscriptionService {
 	return &TranscriptionServiceImpl{
-		Downloader:       downloader,
-		Transcriber:      transcriber,
-		Uploader:         uploader,
-		WhisperModelPath: whisperModelPath,
+		Downloader:  downloader,
+		Transcriber: transcriber,
+		Uploader:    uploader,
 	}
 }
 
 // Execute orchestrates the download, transcription, and upload processes.
-func (s *TranscriptionServiceImpl) Execute(videoURL, outputDir string) error {
+func (s *TranscriptionServiceImpl) Execute(ctx context.Context, videoURL, outputDir string) error {
 	// 1. Download the audio
 	fmt.Println("Downloading audio...")
-	audioFilePath, videoID, err := s.Downloader.DownloadAudio(videoURL, outputDir)
+	audioFilePath, videoID, err := s.Downloader.DownloadAudio(ctx, videoURL, outputDir)
 	if err != nil {
 		return fmt.Errorf("error downloading audio: %w", err)
 	}
@@ -51,7 +58,7 @@ func (s *TranscriptionServiceImpl) Execute(videoURL, outputDir string) error {
 
 	// 2. Transcribe the audio
 	fmt.Println("Transcribing audio...")
-	transcription, err := s.Transcriber.Transcribe(audioFilePath)
+	transcription, err := s.Transcriber.Transcribe(ctx, audioFilePath)
 	if err != nil {
 		return fmt.Errorf("error transcribing audio: %w", err)
 	}
@@ -66,16 +73,20 @@ func (s *TranscriptionServiceImpl) Execute(videoURL, outputDir string) error {
 
 	// 4. Upload the transcription
 	fmt.Println("Uploading transcription...")
-	// The upload path for vercel blob should be in the format: <app_name>/<platform>/<videoID>
 	uploadPath := fmt.Sprintf("%s/%s/%s", APP_NAME, platform, videoID)
-	uploadResponse, err := s.Uploader.Upload(transcription, uploadPath)
+	rawResponse, err := s.Uploader.Upload(ctx, transcription, uploadPath)
 	if err != nil {
 		return fmt.Errorf("error uploading transcription: %w", err)
 	}
 
 	fmt.Println("\n--- Transcription Upload Complete ---")
-	fmt.Println("Response from Vercel Blob API:")
-	fmt.Println(uploadResponse)
+	var blobResp vercelBlobResponse
+	if jsonErr := json.Unmarshal([]byte(rawResponse), &blobResp); jsonErr == nil {
+		fmt.Printf("Blob URL:  %s\n", blobResp.URL)
+		fmt.Printf("Pathname:  %s\n", blobResp.Pathname)
+	} else {
+		fmt.Println(rawResponse)
+	}
 
 	return nil
 }
