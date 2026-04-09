@@ -6,27 +6,31 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // PostgresMediaItemRepository implements MediaItemRepository against a Neon / Postgres database.
+// It uses a connection pool so that connections dropped by the server (e.g. Neon's idle-connection
+// timeout during long transcription jobs) are transparently re-acquired.
 type PostgresMediaItemRepository struct {
-	conn *pgx.Conn
+	pool *pgxpool.Pool
 }
 
-// NewPostgresMediaItemRepository opens a single connection to the database at the given connString
+// NewPostgresMediaItemRepository creates a connection pool to the database at the given connString
 // (i.e. the POSTGRES_URL env var) and returns a ready-to-use repository.
 // The caller is responsible for calling Close() when finished.
 func NewPostgresMediaItemRepository(ctx context.Context, connString string) (*PostgresMediaItemRepository, error) {
-	conn, err := pgx.Connect(ctx, connString)
+	pool, err := pgxpool.New(ctx, connString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	return &PostgresMediaItemRepository{conn: conn}, nil
+	return &PostgresMediaItemRepository{pool: pool}, nil
 }
 
-// Close releases the underlying database connection.
-func (r *PostgresMediaItemRepository) Close(ctx context.Context) error {
-	return r.conn.Close(ctx)
+// Close releases all connections in the pool.
+func (r *PostgresMediaItemRepository) Close(_ context.Context) error {
+	r.pool.Close()
+	return nil
 }
 
 // FetchNextUnprocessed returns the oldest row in media_items where transcript_url IS NULL.
@@ -39,7 +43,7 @@ func (r *PostgresMediaItemRepository) FetchNextUnprocessed(ctx context.Context) 
 		ORDER  BY created_at ASC
 		LIMIT  1`
 
-	row := r.conn.QueryRow(ctx, query)
+	row := r.pool.QueryRow(ctx, query)
 
 	var item MediaItem
 	err := row.Scan(&item.ID, &item.URL, &item.Platform, &item.VideoID)
@@ -59,7 +63,7 @@ func (r *PostgresMediaItemRepository) FetchAll(ctx context.Context) ([]MediaItem
 		FROM   media_items
 		ORDER  BY created_at ASC`
 
-	rows, err := r.conn.Query(ctx, query)
+	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch all items: %w", err)
 	}
@@ -83,7 +87,7 @@ func (r *PostgresMediaItemRepository) FetchAll(ctx context.Context) ([]MediaItem
 func (r *PostgresMediaItemRepository) UpdateTranscriptURL(ctx context.Context, id, transcriptURL string) error {
 	const query = `UPDATE media_items SET transcript_url = $1 WHERE id = $2`
 
-	tag, err := r.conn.Exec(ctx, query, transcriptURL, id)
+	tag, err := r.pool.Exec(ctx, query, transcriptURL, id)
 	if err != nil {
 		return fmt.Errorf("failed to update transcript_url for id %s: %w", id, err)
 	}
