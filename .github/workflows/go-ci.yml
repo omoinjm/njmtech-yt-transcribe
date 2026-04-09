@@ -2,7 +2,7 @@ name: Go Build & Test
 
 on:
   push:
-    branches: ["staging", "development"]
+    branches: ["main", "staging", "development"]
 
 jobs:
   build-and-test:
@@ -42,6 +42,7 @@ jobs:
 
   docker:
     needs: build-and-test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
