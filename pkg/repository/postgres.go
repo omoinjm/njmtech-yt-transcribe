@@ -20,7 +20,18 @@ type PostgresMediaItemRepository struct {
 // (i.e. the POSTGRES_URL env var) and returns a ready-to-use repository.
 // The caller is responsible for calling Close() when finished.
 func NewPostgresMediaItemRepository(ctx context.Context, connString string) (*PostgresMediaItemRepository, error) {
-	pool, err := pgxpool.New(ctx, connString)
+	config, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse connection string: %w", err)
+	}
+
+	// Ping every connection before handing it out so connections dropped by
+	// Neon's idle-connection timeout are never returned to callers.
+	config.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+		return conn.Ping(ctx) == nil
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
