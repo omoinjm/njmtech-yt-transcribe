@@ -1,117 +1,133 @@
-# Video Transcriber CLI (yt-transcribe)
+# yt-transcribe
 
-`yt-transcribe` is a command-line interface (CLI) tool written in Go that allows you to download and transcribe audio from various video platforms. It leverages the powerful `yt-dlp` tool to extract audio and `ffmpeg` to convert it to WAV format.
+A CLI tool written in Go that downloads audio from YouTube, Instagram, and other platforms supported by `yt-dlp`, transcribes it using `whisper.cpp`, and uploads the transcript (SRT format with timestamps) to Vercel Blob storage. It can process a single URL, pull the next job from a Postgres database, or reprocess all existing records.
 
-## ✨ Features
+## Features
 
-- **Video Audio Extraction:** Downloads the audio stream from any valid video URL supported by `yt-dlp` (including YouTube, Instagram, and more).
-- **WAV Format Output:** Converts downloaded audio to high-quality WAV format.
-- **Date-Based Naming:** Saves audio files with a `video_YYYY-MM-DD.wav` naming convention.
-- **Customizable Output Directory:** Allows specifying an output directory for the downloaded audio file.
-- **Dependency Checks:** Automatically checks for `yt-dlp` and `ffmpeg` and prompts the user to install them if missing.
-- **Modular Design:** Built with SOLID principles, making it easy to swap out different audio downloaders or transcription services (though transcription is currently disabled).
+- Downloads audio via `yt-dlp` and converts to WAV with `ffmpeg`
+- Transcribes using `whisper.cpp` — outputs SRT files with timestamps
+- Uploads transcripts to Vercel Blob storage
+- Three run modes: single URL, DB-driven, and reprocess-all
+- Idle-safe DB connection (uses `pgxpool` — survives Neon's connection timeouts during long jobs)
 
-## 🚀 Getting Started
+---
 
-### Prerequisites
+## Environment Variables
 
-Before you can build and run `yt-transcribe`, you'll need the following:
-
-1.  **Go:**
-    - Ensure you have Go version `1.22` or newer installed on your system.
-    - Download and installation instructions can be found at: [https://golang.org/doc/install](https://golang.org/doc/install)
-
-2.  **`yt-dlp`:**
-    - `yt-dlp` is an essential external tool that `yt-transcribe` uses to download audio from YouTube videos. The application explicitly checks for its presence. It must be installed and available in your system's `PATH`.
-    - **Installation on Linux/macOS:**
-      ```bash
-      sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
-      sudo chmod a+rx /usr/local/bin/yt-dlp # Give execute permissions
-      ```
-    - **Installation on Windows:**
-      - Download `yt-dlp.exe` from the [official GitHub releases page](https://github.com/yt-dlp/yt-dlp/releases).
-      - Place the `yt-dlp.exe` file in a directory that is included in your system's `PATH` environment variable (e.g., `C:\Windows`, or a custom directory you've added to PATH).
-
-3.  **`ffmpeg`:**
-    - `ffmpeg` is required by `yt-dlp` for post-processing audio, such as converting to WAV format. The application explicitly checks for its presence. It must be installed and available in your system's `PATH`.
-    - **Installation on Linux (Debian/Ubuntu):**
-      ```bash
-      sudo apt update
-      sudo apt install ffmpeg
-      ```
-    - **Installation on macOS (using Homebrew):**
-      ```bash
-      brew install ffmpeg
-      ```
-    - **Installation on Windows:**
-      - Download `ffmpeg` from [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html).
-      - Add its binaries directory (e.g., `C:\ffmpeg\bin`) to your system's `PATH`.
-
-### Building the Tool
-
-1.  **Clone the repository** (if you haven't already):
-
-    ```bash
-    git clone https://github.com/your-username/yt-transcribe.git # Replace with actual repo if applicable
-    cd yt-transcribe
-    ```
-
-    _(Note: Assuming the current directory is the project root)_
-
-2.  **Build the executable:**
-    Navigate to the project's root directory in your terminal and run:
-
-    ```bash
-    go build -a -v -o yt-transcribe
-    ```
-
-    This command will compile your Go code and create an executable file named `yt-transcribe` (or `yt-transcribe.exe` on Windows) in the current directory.
-
-3.  **Run tests (optional):**
-    To ensure everything is working correctly, you can run the unit tests with:
-    ```bash
-    go test -v ./
-    ```
-
-## 💡 Usage
-
-To run the `yt-transcribe` tool, you can optionally provide a video URL using the `-url` flag. If no URL is provided, a default video will be used. You can also specify a custom output directory using the `-output` flag.
+Copy `.env.example` to `.env` and fill in your values:
 
 ```bash
-./yt-transcribe [-url <VIDEO_URL>] [-output <OUTPUT_DIRECTORY>]
+cp .env.example .env
 ```
 
-- Replace `<VIDEO_URL>` with the actual link to the video you want to download audio from. If omitted, the default URL `https://www.youtube.com/watch?v=rdWZo5PD9Ek` will be used.
-- Replace `<OUTPUT_DIRECTORY>` with the path where you want the `.wav` audio file to be saved. If omitted, the audio will be saved in your system's temporary directory.
+| Variable | Required | Description |
+|---|---|---|
+| `WHISPER_MODEL_PATH` | ✅ | Path to the `ggml-*.bin` model file |
+| `VERCEL_BLOB_API_URL` | ✅ | Upload endpoint for your Blob API |
+| `VERCEL_BLOB_API_TOKEN` | ✅ | Auth token for the Blob API |
+| `POSTGRES_URL` | `-db` / `-reprocess-all` only | Neon / Postgres connection string |
+| `DOCKERHUB_USERNAME` | Docker Compose only | Your Docker Hub username (resolves the image name) |
 
-### Examples:
+---
 
-1.  **Download audio from the default video and save to the default temporary directory:**
+## Usage
 
-    ```bash
-    ./yt-transcribe
-    ```
+### Flags
 
-    _(This will download audio from `https://www.youtube.com/watch?v=rdWZo5PD9Ek` and save a file like `video_2025-12-31.wav` in your temporary directory)_
+```
+-url <URL>        Transcribe a single video URL
+-output <dir>     Directory for temporary audio files (default: /tmp)
+-db               Fetch and process the next unprocessed URL from the database
+-reprocess-all    Reprocess every record in the database (overwrites existing transcripts)
+```
 
-2.  **Download audio from a specified video and save to the default temporary directory:**
+### Examples
 
-    ```bash
-    ./yt-transcribe -url https://www.youtube.com/watch?v=dQw4w9WgXcQ
-    ```
+**Single URL:**
+```bash
+./yt-transcribe -url "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+```
 
-    _(This will save a file like `video_2025-12-31.wav` in your temporary directory)_
+**Next unprocessed item from DB:**
+```bash
+./yt-transcribe -db
+```
 
-3.  **Download audio from a specified video and save to a specific directory:**
-    ```bash
-    ./yt-transcribe -url https://www.youtube.com/watch?v=your_video_id -output ~/youtube_audio
-    ```
-    _(This will save a file like `video_2025-12-31.wav` in the `~/youtube_audio` directory)_
+**Reprocess all records:**
+```bash
+./yt-transcribe -reprocess-all
+```
 
-## 🤝 Contributing
+---
 
-(If this were an open-source project, you'd find contribution guidelines here.)
+## Running with Docker
 
-## 📄 License
+The pre-built image is published to Docker Hub on every merge to `main`. All dependencies (`yt-dlp`, `ffmpeg`, `whisper.cpp`, model) are bundled inside the image.
 
-(If this were an open-source project, you'd find license information here.)
+### `docker run`
+
+```bash
+docker run --rm --env-file .env \
+  your-dockerhub-username/njmtech-yt-transcribe:latest -db
+```
+
+Replace `-db` with any valid flag combination (e.g. `-url "https://..."`, `-reprocess-all`).
+
+### `docker compose`
+
+Ensure `DOCKERHUB_USERNAME` is set in your `.env` file, then:
+
+```bash
+# Process next unprocessed DB item (default command in docker-compose.yml)
+docker compose run --rm yt-transcribe
+
+# Override command
+docker compose run --rm yt-transcribe -url "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+docker compose run --rm yt-transcribe -reprocess-all
+```
+
+---
+
+## VPS Deployment (recommended for long videos)
+
+For videos longer than a few minutes, run the worker on a dedicated VPS instead of CI. A helper script handles the full setup:
+
+```bash
+# On your VPS — clone the repo and run once
+git clone https://github.com/omoinjm/njmtech-yt-transcribe.git
+cd njmtech-yt-transcribe
+bash scripts/setup-vps.sh
+```
+
+The script will:
+1. Install Docker (if not already present)
+2. Copy `docker-compose.yml` to `/opt/yt-transcribe/`
+3. Create `/opt/yt-transcribe/.env` from `.env.example` (edit this file with your secrets)
+4. Pull the latest image from Docker Hub
+5. Register a cron job that runs `./yt-transcribe -db` every 30 minutes
+
+Logs are written to `/var/log/yt-transcribe.log`.
+
+---
+
+## Building from Source
+
+**Prerequisites:** Go 1.22+, `yt-dlp`, `ffmpeg`, `whisper-cli` (from [whisper.cpp](https://github.com/ggml-org/whisper.cpp))
+
+```bash
+git clone https://github.com/omoinjm/njmtech-yt-transcribe.git
+cd njmtech-yt-transcribe
+go build -o yt-transcribe .
+```
+
+**Run tests:**
+```bash
+go test ./...
+```
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
+
