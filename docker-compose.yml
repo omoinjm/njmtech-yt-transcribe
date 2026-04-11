@@ -1,23 +1,11 @@
 services:
   yt-transcribe:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${DOCKERHUB_USERNAME}/njmtech-yt-transcribe:latest
     container_name: yt-transcribe-app
-    # If you want to run the application directly using docker compose,
-    # you might want to specify command line arguments here.
-    # For example, to run with a specific URL and output directory:
-    # command: -url "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -output "/app/output"
-    #
-    # You might also want to mount volumes for persistent data or configuration.
-    # volumes:
-    #   - ./output:/app/output
-    #
-    # Environment variables can be set here if needed, e.g., for WHISPER_MODEL_PATH:
-    # environment:
-    #   - WHISPER_MODEL_PATH=/whisper.cpp/models/ggml-base.en.bin
-    #
-    # Expose ports if the application were a server, which this CLI tool is not.
-    # ports:
-    #   - "8080:8080"
+    command: -db
+    env_file: .env
+    # Mount /tmp so downloaded audio files are written outside the container layer.
+    volumes:
+      - /tmp:/tmp
+    restart: "no"
 

@@ -56,7 +56,9 @@ func TestUpload_Success(t *testing.T) {
 		if blobPath := r.URL.Query().Get("blob_path"); blobPath != filename {
 			t.Errorf("Expected blob_path query parameter to be '%s', got '%s'", filename, blobPath)
 		}
-
+		if r.URL.Query().Get("allow_overwrite") != "true" {
+			t.Errorf("Expected allow_overwrite=true query parameter, got '%s'", r.URL.Query().Get("allow_overwrite"))
+		}
 		// Read the body to ensure it's a multipart form
 		_, err := r.MultipartReader()
 		if err != nil && err != http.ErrNotMultipart {
@@ -184,9 +186,12 @@ func TestUpload_CustomHTTPClient(t *testing.T) {
 	filename := "test.txt"
 	mockClient := &MockHTTPClient{
 		DoFunc: func(req *http.Request) (*http.Response, error) {
-			expectedURLPart := "?blob_path=" + filename
+			expectedURLPart := "blob_path=" + filename
 			if !strings.Contains(req.URL.String(), expectedURLPart) {
 				t.Errorf("Expected URL to contain '%s', but it was '%s'", expectedURLPart, req.URL.String())
+			}
+			if !strings.Contains(req.URL.String(), "allow_overwrite=true") {
+				t.Errorf("Expected URL to contain 'allow_overwrite=true', but it was '%s'", req.URL.String())
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,

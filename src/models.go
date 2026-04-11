@@ -22,5 +22,6 @@ type Uploader interface {
 
 // TranscriptionService defines the interface for the main transcription service.
 type TranscriptionService interface {
-	Execute(ctx context.Context, videoURL, outputDir string) error
+	// Execute orchestrates download → transcribe → upload and returns the uploaded blob URL.
+	Execute(ctx context.Context, videoURL, outputDir string) (blobURL string, err error)
 }
