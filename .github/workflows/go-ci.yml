@@ -25,7 +25,7 @@ jobs:
 
       - name: Run Go tests
         # This command runs all tests in the project, including sub-packages.
-        run: go test -v ./
+        run: go test -v ./...
 
       - name: Build Go binary
         # This builds the executable. The -o flag names the output binary.

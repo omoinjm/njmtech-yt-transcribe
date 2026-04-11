@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -9,21 +10,24 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/joho/godotenv"
-	"yt-transcribe/pkg/downloader"
+	api "yt-transcribe/pkg/api"
+	"yt-transcribe/pkg/bootstrap"
 	"yt-transcribe/pkg/repository"
-	"yt-transcribe/pkg/transcriber"
-	"yt-transcribe/pkg/uploader"
 	"yt-transcribe/src"
 )
 
 const (
-	DEFAULT_VIDEO_URL = "https://www.youtube.com/watch?v=rdWZo5PD9Ek"
-	URL_FLAG          = "url"
-	OUTPUT_FLAG       = "output"
-	DB_FLAG           = "db"
+	DEFAULT_VIDEO_URL  = "https://www.youtube.com/watch?v=rdWZo5PD9Ek"
+	URL_FLAG           = "url"
+	OUTPUT_FLAG        = "output"
+	DB_FLAG            = "db"
 	REPROCESS_ALL_FLAG = "reprocess-all"
 )
+
+type healthResponse struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
 
 // handleFatalError logs a fatal error and exits the program.
 func handleFatalError(message string, err error) {
@@ -34,37 +38,26 @@ func handleFatalError(message string, err error) {
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("Note: No .env file found or error loading .env file. Proceeding without .env variables.")
+	if port := os.Getenv("PORT"); port != "" {
+		runServer(port)
+		return
 	}
 
+	runCLI()
+}
+
+func runCLI() {
 	// Define command-line flags
 	videoURL := flag.String(URL_FLAG, "", "Video URL to download audio from. Can also be provided as a positional argument.")
 	outputDir := flag.String(OUTPUT_FLAG, os.TempDir(), "Directory to save downloaded audio")
-	useDB        := flag.Bool(DB_FLAG, false, "Fetch the next unprocessed video URL from the database instead of using -url")
+	useDB := flag.Bool(DB_FLAG, false, "Fetch the next unprocessed video URL from the database instead of using -url")
 	reprocessAll := flag.Bool(REPROCESS_ALL_FLAG, false, "Re-transcribe every record in the database, overwriting existing transcript URLs")
 	flag.Parse()
 
-	// --- Shared dependency setup ---
-	whisperModelPath := os.Getenv("WHISPER_MODEL_PATH")
-	if whisperModelPath == "" {
-		handleFatalError("WHISPER_MODEL_PATH environment variable not set", nil)
+	transcriptionService, err := bootstrap.NewTranscriptionServiceFromEnv()
+	if err != nil {
+		handleFatalError("Failed to initialize transcription service", err)
 	}
-
-	vercelBlobAPIURL := os.Getenv("VERCEL_BLOB_API_URL")
-	if vercelBlobAPIURL == "" {
-		handleFatalError("VERCEL_BLOB_API_URL environment variable not set", nil)
-	}
-	vercelBlobAPIToken := os.Getenv("VERCEL_BLOB_API_TOKEN")
-	if vercelBlobAPIToken == "" {
-		handleFatalError("VERCEL_BLOB_API_TOKEN environment variable not set", nil)
-	}
-
-	videoDownloader := downloader.NewYTDLPAudioDownloader()
-	audioTranscriber := transcriber.NewWhisperCPPTranscriber(whisperModelPath)
-	blobUploader := uploader.NewVercelBlobUploader(vercelBlobAPIURL, vercelBlobAPIToken, &http.Client{})
-	transcriptionService := src.NewTranscriptionService(videoDownloader, audioTranscriber, blobUploader)
 
 	ctx := context.Background()
 
@@ -80,6 +73,38 @@ func main() {
 	} else {
 		runFromCLI(ctx, transcriptionService, *videoURL, *outputDir)
 	}
+}
+
+func runServer(port string) {
+	transcriptionService, err := bootstrap.NewTranscriptionServiceFromEnv()
+	if err != nil {
+		handleFatalError("Failed to initialize transcription service", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/api/transcribe", api.NewTranscribeHandler(transcriptionService))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(healthResponse{
+			Name:   "yt-transcribe",
+			Status: "ok",
+		}); err != nil {
+			http.Error(w, fmt.Sprintf("failed to encode response: %v", err), http.StatusInternalServerError)
+		}
+	})
+
+	log.Printf("Starting HTTP server on :%s", port)
+	handleFatalError("HTTP server stopped", http.ListenAndServe(":"+port, mux))
 }
 
 // runFromCLI processes a single URL provided via flags or positional args.

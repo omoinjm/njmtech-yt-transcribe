@@ -1,6 +1,6 @@
 # yt-transcribe
 
-A CLI tool written in Go that downloads audio from YouTube, Instagram, and other platforms supported by `yt-dlp`, transcribes it using `whisper.cpp`, and uploads the transcript (SRT format with timestamps) to Vercel Blob storage. It can process a single URL, pull the next job from a Postgres database, or reprocess all existing records.
+A Go transcription worker and HTTP API that downloads audio from YouTube, Instagram, and other platforms supported by `yt-dlp`, transcribes it using `whisper.cpp`, and uploads the transcript (SRT format with timestamps) to Vercel Blob storage. It can run as a CLI worker, pull the next job from Postgres, reprocess existing records, or expose a Vercel-compatible API.
 
 ## Features
 
@@ -8,6 +8,7 @@ A CLI tool written in Go that downloads audio from YouTube, Instagram, and other
 - Transcribes using `whisper.cpp` — outputs SRT files with timestamps
 - Uploads transcripts to Vercel Blob storage
 - Three run modes: single URL, DB-driven, and reprocess-all
+- HTTP API mode for Vercel and local server use
 - Idle-safe DB connection (uses `pgxpool` — survives Neon's connection timeouts during long jobs)
 
 ---
@@ -25,6 +26,7 @@ cp .env.example .env
 | `WHISPER_MODEL_PATH` | ✅ | Path to the `ggml-*.bin` model file |
 | `VERCEL_BLOB_API_URL` | ✅ | Upload endpoint for your Blob API |
 | `VERCEL_BLOB_API_TOKEN` | ✅ | Auth token for the Blob API |
+| `PORT` | Vercel / local API only | Port for HTTP server mode; Vercel sets this automatically |
 | `POSTGRES_URL` | `-db` / `-reprocess-all` only | Neon / Postgres connection string |
 | `DOCKERHUB_USERNAME` | Docker Compose only | Your Docker Hub username (resolves the image name) |
 
@@ -57,6 +59,36 @@ cp .env.example .env
 ```bash
 ./yt-transcribe -reprocess-all
 ```
+
+### API server mode
+
+When `PORT` is set, the binary starts an HTTP server instead of running the CLI flow.
+
+**Run locally:**
+```bash
+PORT=3000 go run .
+```
+
+**Health check:**
+```bash
+curl http://localhost:3000/
+```
+
+**Transcribe a URL:**
+```bash
+curl -X POST http://localhost:3000/api/transcribe \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}'
+```
+
+**Response:**
+```json
+{"blobUrl":"https://..."}
+```
+
+### Vercel deployment
+
+This repo now includes `vercel.json` with the Go framework preset so Vercel can run the root `main.go` server. Set the same environment variables you use locally (`WHISPER_MODEL_PATH`, `VERCEL_BLOB_API_URL`, `VERCEL_BLOB_API_TOKEN`, and `POSTGRES_URL` if needed) in your Vercel project settings.
 
 ---
 
@@ -130,4 +162,3 @@ go test ./...
 ## License
 
 See [LICENSE](LICENSE).
-
