@@ -32,6 +32,39 @@ cp .env.example .env
 
 ---
 
+## Infisical integration
+
+This project optionally supports fetching secrets from Infisical. By default the application reads required values from environment variables (or `.env`). To enable Infisical:
+
+1. Set INFISICAL_ENABLED=true and provide INFISICAL_PROJECT_ID and INFISICAL_ENVIRONMENT.
+2. Provide authentication environment variables (one supported option is Universal Auth):
+   - INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
+   - INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
+3. (Optional) Override the site URL with INFISICAL_SITE_URL (defaults to https://app.infisical.com).
+
+Build and runtime notes:
+
+- Local / Docker (build-time): compile the binary with the `infisical` build tag so the Infisical SDK is included:
+
+  docker build --build-arg INFISICAL_ENABLED=true -t yt-transcribe .
+
+  or with docker-compose (reads from your `.env`):
+
+  INFISICAL_ENABLED=true docker compose build
+
+  When INFISICAL_ENABLED is true the Dockerfile will build the app with `-tags=infisical`.
+
+- CI: the GitHub Actions workflow is configured to build with `-tags=infisical` when the repository secret `INFISICAL_ENABLED` is set to `true`.
+
+- Runtime behavior: the code prefers explicit environment variables first (for local dev and platform-injected secrets). If a required variable is not present and INFISICAL_ENABLED=true, the binary will attempt to fetch the secret from Infisical at startup.
+
+Security
+
+- Never commit secrets to the repository. Use environment variables, CI secrets, or Infisical to inject runtime secrets.
+- Keep `.env` files out of source control; use `.env.example` as a template (already included).
+
+---
+
 ## Usage
 
 ### Flags
