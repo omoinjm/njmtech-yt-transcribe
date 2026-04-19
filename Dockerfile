@@ -18,6 +18,19 @@ COPY go.mod go.sum ./
 # Copy the rest of the application's source code.
 COPY . .
 
+# Build-time argument to enable Infisical provider (controls whether we need to
+# fetch the SDK dependency and build with the infisical tag).
+ARG INFISICAL_ENABLED=false
+
+# If Infisical is enabled, explicitly add the SDK to the module graph so
+# go.mod/go.sum include the additional dependency before download.
+RUN if [ "$INFISICAL_ENABLED" = "true" ]; then \
+      echo "INFISICAL_ENABLED=true: adding infisical SDK to module graph"; \
+      go get github.com/infisical/go-sdk@v0.7.1; \
+    else \
+      echo "INFISICAL_ENABLED=false: skipping infisical go get"; \
+    fi
+
 # Ensure module dependencies are downloaded and go.sum is populated inside the
 # build context. This avoids missing go.sum entries when building with tag
 # variants (e.g., 'infisical').
@@ -27,7 +40,6 @@ RUN go mod download
 # Build with the `infisical` tag when INFISICAL_ENABLED is true at build time.
 # -ldflags="-w -s" strips debug information, reducing the binary size.
 # CGO_ENABLED=0 disables cgo, creating a static binary.
-ARG INFISICAL_ENABLED=false
 RUN if [ "$INFISICAL_ENABLED" = "true" ]; then \
       CGO_ENABLED=0 go build -tags=infisical -ldflags="-w -s" -o /yt-transcribe . ; \
     else \
