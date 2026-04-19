@@ -34,26 +34,42 @@ func fetchFromInfisical(ctx context.Context, secretKey, projectID, environment, 
 		return "", fmt.Errorf("infisical: failed to retrieve secret: %w", err)
 	}
 
-	// Try common shapes for returned secret
-	switch v := secretRaw.(type) {
-	case string:
-		return v, nil
-	case []byte:
-		return string(v), nil
-	default:
-		rv := reflect.ValueOf(secretRaw)
-		if rv.Kind() == reflect.Ptr {
-			rv = rv.Elem()
+	// Try common shapes for the returned secret using reflection (works for
+	// concrete struct types as well as interface{} values).
+	rv := reflect.ValueOf(secretRaw)
+	if !rv.IsValid() {
+		return "", fmt.Errorf("infisical: retrieved secret is invalid")
+	}
+
+	// Handle string
+	if rv.Kind() == reflect.String {
+		return rv.String(), nil
+	}
+
+	// Handle []byte
+	if rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8 {
+		// Convert []byte to string
+		if b, ok := secretRaw.([]byte); ok {
+			return string(b), nil
 		}
-		if rv.IsValid() && rv.Kind() == reflect.Struct {
-			for _, name := range []string{"SecretValue", "Value", "Secret", "SecretString"} {
-				f := rv.FieldByName(name)
-				if f.IsValid() && f.Kind() == reflect.String {
-					return f.String(), nil
-				}
+		// Fallback using reflect
+		return string(rv.Bytes()), nil
+	}
+
+	// If it's a pointer, dereference for struct inspection
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+
+	if rv.IsValid() && rv.Kind() == reflect.Struct {
+		for _, name := range []string{"SecretValue", "Value", "Secret", "SecretString"} {
+			f := rv.FieldByName(name)
+			if f.IsValid() && f.Kind() == reflect.String {
+				return f.String(), nil
 			}
 		}
-		// Fallback to string representation
-		return fmt.Sprintf("%v", secretRaw), nil
 	}
+
+	// Fallback to string representation
+	return fmt.Sprintf("%v", secretRaw), nil
 }
