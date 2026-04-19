@@ -10,12 +10,18 @@ RUN apk add --no-cache git build-base
 WORKDIR /app
 
 # Copy go.mod and go.sum to download dependencies first,
-# leveraging Docker's layer caching.
+# leveraging Docker's layer caching. NOTE: when enabling build-tags that pull
+# additional imports, it's safer to run 'go mod download' after copying the full
+# source so the module graph includes all build-tagged files.
 COPY go.mod go.sum ./
-RUN go mod download
 
 # Copy the rest of the application's source code.
 COPY . .
+
+# Ensure module dependencies are downloaded and go.sum is populated inside the
+# build context. This avoids missing go.sum entries when building with tag
+# variants (e.g., 'infisical').
+RUN go mod download
 
 # Build the Go application.
 # Build with the `infisical` tag when INFISICAL_ENABLED is true at build time.
