@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 
 	infisical "github.com/infisical/go-sdk"
 )
@@ -23,7 +24,7 @@ func fetchFromInfisical(ctx context.Context, secretKey, projectID, environment, 
 		return "", fmt.Errorf("infisical: auth failed: %w", err)
 	}
 
-	secret, err := client.Secrets().Retrieve(infisical.RetrieveSecretOptions{
+	secretRaw, err := client.Secrets().Retrieve(infisical.RetrieveSecretOptions{
 		SecretKey:   secretKey,
 		ProjectID:   projectID,
 		Environment: environment,
@@ -33,8 +34,26 @@ func fetchFromInfisical(ctx context.Context, secretKey, projectID, environment, 
 		return "", fmt.Errorf("infisical: failed to retrieve secret: %w", err)
 	}
 
-	// Return a string representation of the retrieved secret. The SDK's return shape may differ
-	// across versions; consumers building with the `infisical` tag should ensure their SDK
-	// version matches expectations. Using fmt.Sprintf("%v") provides a reasonable default.
-	return fmt.Sprintf("%v", secret), nil
+	// Try common shapes for returned secret
+	switch v := secretRaw.(type) {
+	case string:
+		return v, nil
+	case []byte:
+		return string(v), nil
+	default:
+		rv := reflect.ValueOf(secretRaw)
+		if rv.Kind() == reflect.Ptr {
+			rv = rv.Elem()
+		}
+		if rv.IsValid() && rv.Kind() == reflect.Struct {
+			for _, name := range []string{"SecretValue", "Value", "Secret", "SecretString"} {
+				f := rv.FieldByName(name)
+				if f.IsValid() && f.Kind() == reflect.String {
+					return f.String(), nil
+				}
+			}
+		}
+		// Fallback to string representation
+		return fmt.Sprintf("%v", secretRaw), nil
+	}
 }
