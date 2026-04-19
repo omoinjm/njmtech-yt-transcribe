@@ -48,11 +48,7 @@ func fetchFromInfisical(ctx context.Context, secretKey, projectID, environment, 
 
 	// Handle []byte
 	if rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8 {
-		// Convert []byte to string
-		if b, ok := secretRaw.([]byte); ok {
-			return string(b), nil
-		}
-		// Fallback using reflect
+		// Convert []byte to string using reflect
 		return string(rv.Bytes()), nil
 	}
 

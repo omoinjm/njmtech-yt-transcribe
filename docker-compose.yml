@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - INFISICAL_ENABLED=${INFISICAL_ENABLED:-false}
     container_name: yt-transcribe-app
     command: -db
     env_file: .env
@@ -16,5 +14,6 @@ services:
       # Example env vars (set these in .env or your deployment):
       - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
       - INFISICAL_ENVIRONMENT=${INFISICAL_ENVIRONMENT}
-      - INFISICAL_UNIVERSAL_AUTH_CLIENT_ID=${INFISICAL_CLIENT_ID}
-      - INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET}
+      - INFISICAL_UNIVERSAL_AUTH_CLIENT_ID=${INFISICAL_UNIVERSAL_AUTH_CLIENT_ID}
+      - INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=${INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET}
+      - INFISICAL_SITE_URL=${INFISICAL_SITE_URL}
