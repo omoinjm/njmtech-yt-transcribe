@@ -133,9 +133,14 @@ func runFromCLI(ctx context.Context, svc src.TranscriptionService, videoURL, out
 // runFromDB fetches the next unprocessed media_items row, transcribes it,
 // and writes the resulting Vercel Blob URL back to transcript_url.
 func runFromDB(ctx context.Context, svc src.TranscriptionService, outputDir string) {
-	postgresURL := os.Getenv("POSTGRES_URL")
+	cfg, err := bootstrap.LoadConfigFromEnv(ctx)
+	if err != nil {
+		handleFatalError("Failed to load configuration", err)
+	}
+
+	postgresURL := cfg.PostgresURL
 	if postgresURL == "" {
-		handleFatalError("POSTGRES_URL environment variable not set (required for -db mode)", nil)
+		handleFatalError("POSTGRES_URL not set (required for -db mode)", nil)
 	}
 
 	repo, err := repository.NewPostgresMediaItemRepository(ctx, postgresURL)
@@ -172,9 +177,14 @@ func runFromDB(ctx context.Context, svc src.TranscriptionService, outputDir stri
 // overwriting the existing transcript_url. Failures on individual items are logged
 // and skipped so the rest of the batch can continue.
 func runReprocessAll(ctx context.Context, svc src.TranscriptionService, outputDir string) {
-	postgresURL := os.Getenv("POSTGRES_URL")
+	cfg, err := bootstrap.LoadConfigFromEnv(ctx)
+	if err != nil {
+		handleFatalError("Failed to load configuration", err)
+	}
+
+	postgresURL := cfg.PostgresURL
 	if postgresURL == "" {
-		handleFatalError("POSTGRES_URL environment variable not set (required for -reprocess-all mode)", nil)
+		handleFatalError("POSTGRES_URL not set (required for -reprocess-all mode)", nil)
 	}
 
 	repo, err := repository.NewPostgresMediaItemRepository(ctx, postgresURL)

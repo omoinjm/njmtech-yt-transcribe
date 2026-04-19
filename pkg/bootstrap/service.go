@@ -18,6 +18,14 @@ import (
 
 var loadDotEnvOnce sync.Once
 
+// Config holds application configuration loaded from environment or Infisical.
+type Config struct {
+	WhisperModelPath  string
+	VercelBlobAPIURL  string
+	VercelBlobAPIToken string
+	PostgresURL       string
+}
+
 func loadDotEnv() {
 	loadDotEnvOnce.Do(func() {
 		if err := godotenv.Load(); err != nil {
@@ -26,10 +34,9 @@ func loadDotEnv() {
 	})
 }
 
-
-func NewTranscriptionServiceFromEnv() (src.TranscriptionService, error) {
+// LoadConfigFromEnv loads all configuration from environment or Infisical.
+func LoadConfigFromEnv(ctx context.Context) (*Config, error) {
 	loadDotEnv()
-	ctx := context.Background()
 
 	// Optional Infisical configuration: set INFISICAL_ENABLED=true, INFISICAL_PROJECT_ID and INFISICAL_ENVIRONMENT
 	infisicalProjectID := os.Getenv("INFISICAL_PROJECT_ID")
@@ -59,9 +66,31 @@ func NewTranscriptionServiceFromEnv() (src.TranscriptionService, error) {
 		return nil, fmt.Errorf("VERCEL_BLOB_API_TOKEN not set")
 	}
 
+	// POSTGRES_URL is optional (only needed for -db mode)
+	postgresURL, err := secrets.GetSecret(ctx, "POSTGRES_URL", "POSTGRES_URL", infisicalProjectID, infisicalEnvironment)
+	if err != nil {
+		// If POSTGRES_URL is not found and Infisical is not enabled, return empty string (optional)
+		postgresURL = ""
+	}
+
+	return &Config{
+		WhisperModelPath:   whisperModelPath,
+		VercelBlobAPIURL:   vercelBlobAPIURL,
+		VercelBlobAPIToken: vercelBlobAPIToken,
+		PostgresURL:        postgresURL,
+	}, nil
+}
+
+func NewTranscriptionServiceFromEnv() (src.TranscriptionService, error) {
+	ctx := context.Background()
+	cfg, err := LoadConfigFromEnv(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	videoDownloader := downloader.NewYTDLPAudioDownloader()
-	audioTranscriber := transcriber.NewWhisperCPPTranscriber(whisperModelPath)
-	blobUploader := uploader.NewVercelBlobUploader(vercelBlobAPIURL, vercelBlobAPIToken, &http.Client{})
+	audioTranscriber := transcriber.NewWhisperCPPTranscriber(cfg.WhisperModelPath)
+	blobUploader := uploader.NewVercelBlobUploader(cfg.VercelBlobAPIURL, cfg.VercelBlobAPIToken, &http.Client{})
 
 	return src.NewTranscriptionService(videoDownloader, audioTranscriber, blobUploader), nil
 }
