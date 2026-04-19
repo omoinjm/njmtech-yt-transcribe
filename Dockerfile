@@ -35,8 +35,8 @@ FROM alpine:3.21
 # python3 is required by yt-dlp.
 RUN apk add --no-cache ffmpeg curl cmake build-base git python3
 
-# Install yt-dlp from a pinned release for reproducible builds.
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/download/2025.10.22/yt-dlp -o /usr/local/bin/yt-dlp && \
+# Install yt-dlp from the latest release.
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp
 
 # Install and build whisper.cpp from a pinned release tag.
