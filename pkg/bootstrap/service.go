@@ -41,6 +41,14 @@ func LoadConfigFromEnv(ctx context.Context) (*Config, error) {
 	// Optional Infisical configuration: set INFISICAL_ENABLED=true, INFISICAL_PROJECT_ID and INFISICAL_ENVIRONMENT
 	infisicalProjectID := os.Getenv("INFISICAL_PROJECT_ID")
 	infisicalEnvironment := os.Getenv("INFISICAL_ENVIRONMENT")
+	infisicalEnabled := os.Getenv("INFISICAL_ENABLED") == "true"
+
+	log.Println("=== Loading Configuration ===")
+	if infisicalEnabled {
+		log.Printf("Infisical is enabled (project: %s, environment: %s)", infisicalProjectID, infisicalEnvironment)
+	} else {
+		log.Println("Infisical is disabled; reading from environment variables only")
+	}
 
 	whisperModelPath, err := secrets.GetSecret(ctx, "WHISPER_MODEL_PATH", "WHISPER_MODEL_PATH", infisicalProjectID, infisicalEnvironment)
 	if err != nil {
@@ -49,6 +57,7 @@ func LoadConfigFromEnv(ctx context.Context) (*Config, error) {
 	if whisperModelPath == "" {
 		return nil, fmt.Errorf("WHISPER_MODEL_PATH not set")
 	}
+	logSecretLoaded("WHISPER_MODEL_PATH")
 
 	vercelBlobAPIURL, err := secrets.GetSecret(ctx, "VERCEL_BLOB_API_URL", "VERCEL_BLOB_API_URL", infisicalProjectID, infisicalEnvironment)
 	if err != nil {
@@ -57,6 +66,7 @@ func LoadConfigFromEnv(ctx context.Context) (*Config, error) {
 	if vercelBlobAPIURL == "" {
 		return nil, fmt.Errorf("VERCEL_BLOB_API_URL not set")
 	}
+	logSecretLoaded("VERCEL_BLOB_API_URL")
 
 	vercelBlobAPIToken, err := secrets.GetSecret(ctx, "VERCEL_BLOB_API_TOKEN", "VERCEL_BLOB_API_TOKEN", infisicalProjectID, infisicalEnvironment)
 	if err != nil {
@@ -65,13 +75,21 @@ func LoadConfigFromEnv(ctx context.Context) (*Config, error) {
 	if vercelBlobAPIToken == "" {
 		return nil, fmt.Errorf("VERCEL_BLOB_API_TOKEN not set")
 	}
+	logSecretLoaded("VERCEL_BLOB_API_TOKEN")
 
 	// POSTGRES_URL is optional (only needed for -db mode)
 	postgresURL, err := secrets.GetSecret(ctx, "POSTGRES_URL", "POSTGRES_URL", infisicalProjectID, infisicalEnvironment)
 	if err != nil {
 		// If POSTGRES_URL is not found and Infisical is not enabled, return empty string (optional)
 		postgresURL = ""
+		log.Println("POSTGRES_URL: not set (optional)")
+	} else if postgresURL != "" {
+		logSecretLoaded("POSTGRES_URL")
+	} else {
+		log.Println("POSTGRES_URL: not set (optional)")
 	}
+
+	log.Println("=== Configuration Loaded Successfully ===")
 
 	return &Config{
 		WhisperModelPath:   whisperModelPath,
@@ -79,6 +97,11 @@ func LoadConfigFromEnv(ctx context.Context) (*Config, error) {
 		VercelBlobAPIToken: vercelBlobAPIToken,
 		PostgresURL:        postgresURL,
 	}, nil
+}
+
+// logSecretLoaded logs that a secret was successfully loaded (without revealing its value).
+func logSecretLoaded(secretName string) {
+	log.Printf("%s: ✓ loaded", secretName)
 }
 
 func NewTranscriptionServiceFromEnv() (src.TranscriptionService, error) {
