@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"yt-transcribe/pkg/downloader"
 	"yt-transcribe/pkg/transcriber"
 	"yt-transcribe/pkg/uploader"
+	"yt-transcribe/pkg/secrets"
 	"yt-transcribe/src"
 )
 
@@ -24,31 +26,37 @@ func loadDotEnv() {
 	})
 }
 
-func requiredEnv(name string) (string, error) {
-	value := os.Getenv(name)
-	if value == "" {
-		return "", fmt.Errorf("%s environment variable not set", name)
-	}
-
-	return value, nil
-}
 
 func NewTranscriptionServiceFromEnv() (src.TranscriptionService, error) {
 	loadDotEnv()
+	ctx := context.Background()
 
-	whisperModelPath, err := requiredEnv("WHISPER_MODEL_PATH")
+	// Optional Infisical configuration: set INFISICAL_ENABLED=true, INFISICAL_PROJECT_ID and INFISICAL_ENVIRONMENT
+	infisicalProjectID := os.Getenv("INFISICAL_PROJECT_ID")
+	infisicalEnvironment := os.Getenv("INFISICAL_ENVIRONMENT")
+
+	whisperModelPath, err := secrets.GetSecret(ctx, "WHISPER_MODEL_PATH", "WHISPER_MODEL_PATH", infisicalProjectID, infisicalEnvironment)
 	if err != nil {
 		return nil, err
 	}
+	if whisperModelPath == "" {
+		return nil, fmt.Errorf("WHISPER_MODEL_PATH not set")
+	}
 
-	vercelBlobAPIURL, err := requiredEnv("VERCEL_BLOB_API_URL")
+	vercelBlobAPIURL, err := secrets.GetSecret(ctx, "VERCEL_BLOB_API_URL", "VERCEL_BLOB_API_URL", infisicalProjectID, infisicalEnvironment)
 	if err != nil {
 		return nil, err
 	}
+	if vercelBlobAPIURL == "" {
+		return nil, fmt.Errorf("VERCEL_BLOB_API_URL not set")
+	}
 
-	vercelBlobAPIToken, err := requiredEnv("VERCEL_BLOB_API_TOKEN")
+	vercelBlobAPIToken, err := secrets.GetSecret(ctx, "VERCEL_BLOB_API_TOKEN", "VERCEL_BLOB_API_TOKEN", infisicalProjectID, infisicalEnvironment)
 	if err != nil {
 		return nil, err
+	}
+	if vercelBlobAPIToken == "" {
+		return nil, fmt.Errorf("VERCEL_BLOB_API_TOKEN not set")
 	}
 
 	videoDownloader := downloader.NewYTDLPAudioDownloader()
