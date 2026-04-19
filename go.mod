@@ -3,6 +3,7 @@ module yt-transcribe
 go 1.25.5
 
 require github.com/joho/godotenv v1.5.1
+require github.com/infisical/go-sdk v0.7.1
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
