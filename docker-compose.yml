@@ -1,6 +1,10 @@
 services:
   yt-transcribe:
-    image: ${DOCKERHUB_USERNAME}/njmtech-yt-transcribe:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - INFISICAL_ENABLED=${INFISICAL_ENABLED:-false}
     container_name: yt-transcribe-app
     command: -db
     env_file: .env
@@ -8,4 +12,17 @@ services:
     volumes:
       - /tmp:/tmp
     restart: "no"
-
+    environment:
+      # Example env vars (set these in .env or your deployment):
+      # INFISICAL_ENABLED: "true"
+      # INFISICAL_PROJECT_ID: "<project-id>"
+      # INFISICAL_ENVIRONMENT: "dev"
+      # INFISICAL_UNIVERSAL_AUTH_CLIENT_ID: "<client-id>"
+      # INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET: "<client-secret>"
+      # INFISICAL_SITE_URL: "https://app.infisical.com"
+      - INFISICAL_ENABLED=${INFISICAL_ENABLED}
+      - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID}
+      - INFISICAL_ENVIRONMENT=${INFISICAL_ENVIRONMENT}
+      - INFISICAL_UNIVERSAL_AUTH_CLIENT_ID=${INFISICAL_UNIVERSAL_AUTH_CLIENT_ID}
+      - INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET=${INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET}
+      - INFISICAL_SITE_URL=${INFISICAL_SITE_URL}

@@ -18,9 +18,15 @@ RUN go mod download
 COPY . .
 
 # Build the Go application.
+# Build with the `infisical` tag when INFISICAL_ENABLED is true at build time.
 # -ldflags="-w -s" strips debug information, reducing the binary size.
 # CGO_ENABLED=0 disables cgo, creating a static binary.
-RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /yt-transcribe .
+ARG INFISICAL_ENABLED=false
+RUN if [ "$INFISICAL_ENABLED" = "true" ]; then \
+      CGO_ENABLED=0 go build -tags=infisical -ldflags="-w -s" -o /yt-transcribe . ; \
+    else \
+      CGO_ENABLED=0 go build -ldflags="-w -s" -o /yt-transcribe . ; \
+    fi
 
 # Stage 2: Create the final, minimal image
 FROM alpine:3.21
