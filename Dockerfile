@@ -30,10 +30,11 @@ RUN CGO_ENABLED=0 go build -tags=infisical -ldflags="-w -s" -o /yt-transcribe .
 # Stage 2: Create the final, minimal image
 FROM alpine:3.21
 
-# Install runtime dependencies: ffmpeg, curl, cmake, build-base, python3.
+# Install runtime dependencies: ffmpeg, curl, cmake, build-base, python3, busybox-extras.
 # cmake and build-base are needed for building whisper.cpp.
 # python3 is required by yt-dlp.
-RUN apk add --no-cache ffmpeg curl cmake build-base git python3
+# busybox-extras provides crond for scheduling cron jobs.
+RUN apk add --no-cache ffmpeg curl cmake build-base git python3 busybox-extras
 
 # Install yt-dlp from the latest release.
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
@@ -50,5 +51,9 @@ RUN git clone --depth 1 --branch v1.8.4 https://github.com/ggml-org/whisper.cpp.
 # Copy the built Go binary from the builder stage.
 COPY --from=builder /yt-transcribe /usr/local/bin/
 
-# Set the entrypoint for the container.
-ENTRYPOINT ["/usr/local/bin/yt-transcribe"]
+# Copy the entrypoint script and make it executable.
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Set the entrypoint to manage cron scheduling.
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

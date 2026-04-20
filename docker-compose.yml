@@ -4,7 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: yt-transcribe-app
-    command: -db
     env_file: .env
     # Mount /tmp so downloaded audio files are written outside the container layer.
     volumes:

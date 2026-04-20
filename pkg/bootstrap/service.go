@@ -20,10 +20,12 @@ var loadDotEnvOnce sync.Once
 
 // Config holds application configuration loaded from environment or Infisical.
 type Config struct {
-	WhisperModelPath  string
-	VercelBlobAPIURL  string
-	VercelBlobAPIToken string
-	PostgresURL       string
+	WhisperModelPath        string
+	VercelBlobAPIURL        string
+	VercelBlobAPIToken      string
+	PostgresURL             string
+	YTDLPCookiesFile        string
+	YTDLPCookiesFromBrowser string
 }
 
 func loadDotEnv() {
@@ -89,13 +91,26 @@ func LoadConfigFromEnv(ctx context.Context) (*Config, error) {
 		log.Println("POSTGRES_URL: not set (optional)")
 	}
 
+	// yt-dlp cookie options are optional
+	ytdlpCookiesFile, _ := secrets.GetSecret(ctx, "YT_DLP_COOKIES_FILE", "YT_DLP_COOKIES_FILE", infisicalProjectID, infisicalEnvironment)
+	if ytdlpCookiesFile != "" {
+		logSecretLoaded("YT_DLP_COOKIES_FILE")
+	}
+
+	ytdlpCookiesFromBrowser, _ := secrets.GetSecret(ctx, "YT_DLP_COOKIES_FROM_BROWSER", "YT_DLP_COOKIES_FROM_BROWSER", infisicalProjectID, infisicalEnvironment)
+	if ytdlpCookiesFromBrowser != "" {
+		logSecretLoaded("YT_DLP_COOKIES_FROM_BROWSER")
+	}
+
 	log.Println("=== Configuration Loaded Successfully ===")
 
 	return &Config{
-		WhisperModelPath:   whisperModelPath,
-		VercelBlobAPIURL:   vercelBlobAPIURL,
-		VercelBlobAPIToken: vercelBlobAPIToken,
-		PostgresURL:        postgresURL,
+		WhisperModelPath:        whisperModelPath,
+		VercelBlobAPIURL:        vercelBlobAPIURL,
+		VercelBlobAPIToken:      vercelBlobAPIToken,
+		PostgresURL:             postgresURL,
+		YTDLPCookiesFile:        ytdlpCookiesFile,
+		YTDLPCookiesFromBrowser: ytdlpCookiesFromBrowser,
 	}, nil
 }
 
@@ -111,7 +126,7 @@ func NewTranscriptionServiceFromEnv() (src.TranscriptionService, error) {
 		return nil, err
 	}
 
-	videoDownloader := downloader.NewYTDLPAudioDownloader()
+	videoDownloader := downloader.NewYTDLPAudioDownloader(cfg.YTDLPCookiesFile, cfg.YTDLPCookiesFromBrowser)
 	audioTranscriber := transcriber.NewWhisperCPPTranscriber(cfg.WhisperModelPath)
 	blobUploader := uploader.NewVercelBlobUploader(cfg.VercelBlobAPIURL, cfg.VercelBlobAPIToken, &http.Client{})
 

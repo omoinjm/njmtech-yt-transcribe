@@ -22,6 +22,8 @@ const (
 	OUTPUT_FLAG        = "output"
 	DB_FLAG            = "db"
 	REPROCESS_ALL_FLAG = "reprocess-all"
+	COOKIES_FILE_FLAG  = "cookies-file"
+	COOKIES_BROWSER_FLAG = "cookies-from-browser"
 )
 
 type healthResponse struct {
@@ -52,7 +54,16 @@ func runCLI() {
 	outputDir := flag.String(OUTPUT_FLAG, os.TempDir(), "Directory to save downloaded audio")
 	useDB := flag.Bool(DB_FLAG, false, "Fetch the next unprocessed video URL from the database instead of using -url")
 	reprocessAll := flag.Bool(REPROCESS_ALL_FLAG, false, "Re-transcribe every record in the database, overwriting existing transcript URLs")
+	cookiesFile := flag.String(COOKIES_FILE_FLAG, "", "Path to a cookies file for yt-dlp")
+	cookiesFromBrowser := flag.String(COOKIES_BROWSER_FLAG, "", "Browser name to extract cookies from (e.g., chrome, firefox)")
 	flag.Parse()
+
+	if *cookiesFile != "" {
+		os.Setenv("YT_DLP_COOKIES_FILE", *cookiesFile)
+	}
+	if *cookiesFromBrowser != "" {
+		os.Setenv("YT_DLP_COOKIES_FROM_BROWSER", *cookiesFromBrowser)
+	}
 
 	transcriptionService, err := bootstrap.NewTranscriptionServiceFromEnv()
 	if err != nil {

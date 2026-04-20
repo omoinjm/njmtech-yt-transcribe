@@ -27,12 +27,18 @@ var cmdCombinedOutput = func(cmd *exec.Cmd) ([]byte, error) {
 
 // YTDLPAudioDownloader is an implementation of VideoDownloader that uses the `yt-dlp` external tool.
 // It downloads the audio stream of a given video.
-type YTDLPAudioDownloader struct{}
+type YTDLPAudioDownloader struct {
+	cookiesFile        string
+	cookiesFromBrowser string
+}
 
 // NewYTDLPAudioDownloader creates and returns a new instance of YTDLPAudioDownloader.
 // This acts as a constructor, promoting consistency in object creation.
-func NewYTDLPAudioDownloader() *YTDLPAudioDownloader {
-	return &YTDLPAudioDownloader{}
+func NewYTDLPAudioDownloader(cookiesFile, cookiesFromBrowser string) *YTDLPAudioDownloader {
+	return &YTDLPAudioDownloader{
+		cookiesFile:        cookiesFile,
+		cookiesFromBrowser: cookiesFromBrowser,
+	}
 }
 
 // DownloadAudio downloads the audio stream from the specified video URL
@@ -55,8 +61,18 @@ func (d *YTDLPAudioDownloader) DownloadAudio(ctx context.Context, videoURL strin
 		return "", "", fmt.Errorf("yt-dlp not found in PATH. Please install it to use this feature: %w", err)
 	}
 
+	// Build common arguments
+	commonArgs := []string{}
+	if d.cookiesFile != "" {
+		commonArgs = append(commonArgs, "--cookies", d.cookiesFile)
+	}
+	if d.cookiesFromBrowser != "" {
+		commonArgs = append(commonArgs, "--cookies-from-browser", d.cookiesFromBrowser)
+	}
+
 	// Get video ID
-	idCmd := commandExecutor(ctx, "yt-dlp", "--get-id", videoURL)
+	idArgs := append(commonArgs, "--get-id", videoURL)
+	idCmd := commandExecutor(ctx, "yt-dlp", idArgs...)
 	idOutput, err := cmdCombinedOutput(idCmd)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get video ID: %v\nOutput: %s", err, string(idOutput))
@@ -80,15 +96,14 @@ func (d *YTDLPAudioDownloader) DownloadAudio(ctx context.Context, videoURL strin
 	outputFilename := fmt.Sprintf("%s.wav", videoID)
 	downloadedFilePath := filepath.Join(outputDir, outputFilename)
 
-	cmd := commandExecutor(
-		ctx,
-		"yt-dlp",
+	downloadArgs := append(commonArgs,
 		"-x",                    // Extract audio
 		"--audio-format", "wav", // Convert audio to wav format
 		"--output", downloadedFilePath, // Output path
 		"--restrict-filenames", // Keep filenames simple
 		videoURL,
 	)
+	cmd := commandExecutor(ctx, "yt-dlp", downloadArgs...)
 
 	fmt.Printf("Executing command: %s\n", cmd.String())
 
